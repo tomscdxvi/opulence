@@ -7,6 +7,7 @@ function App() {
 
   return (
     <>
+      <h1>Splendor</h1>
       <PlayBoard />
     </>
   )
