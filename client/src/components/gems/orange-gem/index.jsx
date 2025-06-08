@@ -1,7 +1,8 @@
 import React, { useState } from "react";
+import Gem from '../../../assets/gems/orange-gem.png'
 
-export default function YellowGem() {
-    const [gems, setGems] = useState(8);
+export default function OrangeGem() {
+    const [gems, setGems] = useState(7);
 
     const getGem = (event) => {
         event.preventDefault();
@@ -20,10 +21,10 @@ export default function YellowGem() {
                     <button onClick={getGem}>Take</button>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <h4 style={{ marginRight: '6px' }}>Yellow Gem</h4>
+                    <img src={Gem} width={50} style={{ marginRight: '12px'}} />
                     <h4>{gems}</h4>
                 </div>
             </div>
         </>
-    ); 
+    );
 }

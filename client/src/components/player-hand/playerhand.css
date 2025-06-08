@@ -1,0 +1,83 @@
+.view-hand-button {
+    padding: 8px 16px;
+    background-color: #3b3e41;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+/* LEFT side rotation */
+.view-hand-button.left {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    translate: 0 -50%;
+}
+
+/* RIGHT side rotation */
+.view-hand-button.right {
+    transform: rotate(90deg);
+    transform-origin: right top;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    translate: 0 -50%;
+}
+
+/* Optional: Top/bottom can remain horizontal */
+.view-hand-button.top {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.view-hand-button.bottom {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    width: 600px;
+    max-height: 80vh;
+}
+
+.close-button {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.card-grid {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}

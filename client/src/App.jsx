@@ -3,6 +3,7 @@ import './App.css'
 import io from 'socket.io-client';
 import PlayBoard from './components/play-board'
 import { useEffect } from 'react';
+import PlayerHand from './components/player-hand';
 
 const socket = io.connect("http://localhost:5001");
 
@@ -29,12 +30,24 @@ function App() {
 
 	return (
 		<>
-			<h1>Splendor</h1>
-			<PlayBoard />
+			<div style={{
+				position: 'relative',
+				width: '100vw',
+				height: '100vh',
+				display: 'flex',
+				justifyContent: 'center',
+				alignItems: 'center',
+				backgroundColor: '#e0e0e0',
+				boxSizing: 'border-box', // ✅ important
+				overflow: 'hidden',      // ✅ also helps
+			}}>
+				<PlayerHand player={1} side="bottom" />
+				<PlayerHand player={2} side="top" />
+				<PlayerHand player={3} side="left" />
+				<PlayerHand player={4} side="right" />
 
-			<div>
-				<input placeholder="Message..." />
-				<button onClick={sendMessage}>Send Message</button>
+				{/* Game board in center */}
+				<PlayBoard />
 			</div>
 		</>
 	)

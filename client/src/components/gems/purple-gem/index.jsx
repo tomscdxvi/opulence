@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import Gem from '../../../assets/gems/red-gem.png';
+import Gem from '../../../assets/gems/purple-gem.png'
 
-export default function RedGem() {
+export default function PurpleGem() {
     const [gems, setGems] = useState(7);
 
     const getGem = (event) => {
@@ -26,5 +26,5 @@ export default function RedGem() {
                 </div>
             </div>
         </>
-    );
+    ); 
 }
