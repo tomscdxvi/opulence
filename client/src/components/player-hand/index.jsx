@@ -3,7 +3,7 @@ import GreenCard from '../cards/green-card';
 import YellowCard from '../cards/yellow-card';
 import BlueCard from '../cards/blue-card';
 import NobleCard from '../cards/noble-card';
-import './PlayerHand.css';
+import './playerhand.css';
 
 export default function PlayerHand({ player, side }) {
   const [isOpen, setIsOpen] = useState(false);

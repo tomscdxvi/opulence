@@ -5,7 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "server": "nodemon server.js"
+    "dev": "nodemon index.js",
+    "prod": "node index.js"
   },
   "author": "Tommy Chiu",
   "license": "ISC",
