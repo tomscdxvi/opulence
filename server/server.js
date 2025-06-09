@@ -248,8 +248,7 @@ socket.on('connection', (socket) => {
 
 });
 
-const HTTP_PORT = process.env.HTTP_PORT || 6001;
-const PORT = process.env.PORT || 6000;
+const HTTP_PORT = process.env.HTTP_PORT || 5001;
 
 const uri = process.env.MONGODB_URI;
 
@@ -272,7 +271,6 @@ const connectToMongoDb = async () => {
 };
 
 try {
-  // app.listen(PORT, () => console.log(`Connected to Server at Port: ${PORT}`));
   httpServer.listen(HTTP_PORT, () => {
     console.log(`Connected to HTTP Server at HTTP Port ${HTTP_PORT}`);
   });
