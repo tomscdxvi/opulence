@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 const httpServer = createServer(app);
 const socket = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "https://opulence-one.vercel.app"],
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
@@ -272,7 +272,7 @@ const connectToMongoDb = async () => {
 };
 
 try {
-  app.listen(PORT, () => console.log(`Connected to Server at Port: ${PORT}`));
+  // app.listen(PORT, () => console.log(`Connected to Server at Port: ${PORT}`));
   httpServer.listen(HTTP_PORT, () => {
     console.log(`Connected to HTTP Server at HTTP Port ${HTTP_PORT}`);
   });
