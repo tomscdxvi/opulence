@@ -4,7 +4,6 @@ import GGem from '../../../assets/gems/green-gem.png';
 import PGem from '../../../assets/gems/purple-gem.png';
 import OGem from '../../../assets/gems/orange-gem.png';
 import WGem from '../../../assets/gems/white-gem.png';
-import MinerNoble from '../../../assets/nobles/miner.jpg';
 
 // Map color names to gem image imports
 const gemImages = {
