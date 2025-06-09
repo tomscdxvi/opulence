@@ -10,14 +10,14 @@ export default function WaitingRoom() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [players, setPlayers] = useState([]);
-  const [playerName, setPlayerName] = useState('');
+  const [username, setUsername] = useState('');
   const [nameSubmitted, setNameSubmitted] = useState(false); // Track if user has entered their name
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!nameSubmitted) return;
 
-    socket.emit('join_room', { roomId, playerName });
+    socket.emit('join_room', { roomId, username });
 
     socket.on('receive_message', (msg) => {
       setMessages((prev) => [...prev, msg]);
@@ -36,7 +36,7 @@ export default function WaitingRoom() {
       socket.off('start_game');
       socket.off('update_players');
     };
-  }, [roomId, playerName, nameSubmitted, navigate]);
+  }, [roomId, username, nameSubmitted, navigate]);
 
   useEffect(() => {
     socket.on('error_message', (msg) => {
@@ -57,8 +57,8 @@ export default function WaitingRoom() {
     }, [roomId, navigate]);
 
   const handleNameSubmit = () => {
-    if (playerName.trim()) {
-      sessionStorage.setItem('playername', playerName);
+    if (username.trim()) {
+      sessionStorage.setItem('username', username);
       sessionStorage.setItem('roomId', roomId);
       setNameSubmitted(true);
     }
@@ -81,8 +81,8 @@ export default function WaitingRoom() {
         <h2>Enter your name to join the room</h2>
         <input
           type="text"
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           placeholder="Your name"
           style={{ padding: '8px', fontSize: '16px' }}
         />

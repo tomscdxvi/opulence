@@ -7,13 +7,16 @@ export default function Lobby() {
   const [room, setRoom] = useState('');
   const navigate = useNavigate();
 
-  const joinRoom = () => {
+  const joinRoom = (e) => {
+    e.preventDefault();
+
     const trimmedRoom = room.trim();
     if (!trimmedRoom) return;
 
     // Emit check to server
     socket.emit("check_room_exists", trimmedRoom, (exists) => {
       if (exists) {
+        sessionStorage.setItem('roomId', trimmedRoom);
         navigate(`/room/${trimmedRoom}/waiting`);
       } else {
         alert("Room does not exist.");
