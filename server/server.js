@@ -465,118 +465,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Join Room
-  
-  // socket.on('join_room', async ({ roomId, username }) => {
-  //   try {
-  //     const room = await Room.findById(roomId);
-  //     if (!room) {
-  //       socket.emit('error_message', 'Room does not exist');
-  //       return;
-  //     }
-
-  //     socket.join(roomId);
-  //     socketToRoom.set(socket.id, roomId);
-
-  //     // Store username on socket for later message sending
-  //     socket.username = username; 
-
-  //     console.log('join_room: loaded room:', room);
-
-  //     // Check if player already exists in players array by socket.id
-  //     const existingPlayer = room.players.find(p => p.socketId === socket.id);
-
-  //     if (!existingPlayer) {
-  //       // Add new player object
-  //       room.players.push({
-  //         socketId: socket.id,
-  //         username,
-  //         score: 0,
-  //         gems: { white: 0, blue: 0, green: 0, orange: 0, black: 0, purple: 0, gold: 0 },
-  //         cards: [],
-  //         reservedCards: [],
-  //       });
-  //     }
-
-  //     // Add socket.id to playerOrder if not present
-  //     if (!Array.isArray(room.playerOrder)) room.playerOrder = [];
-  //     if (!room.playerOrder.includes(socket.id)) room.playerOrder.push(socket.id);
-
-  //     // Set currentPlayerId if none set
-  //     if (!room.currentPlayerId) room.currentPlayerId = room.playerOrder[0];
-
-  //     await room.save();
-
-  //     // Extract usernames for update_players event
-  //     const usernames = room.players.map(p => p.username);
-
-  //     io.in(roomId).emit('update_players', usernames);
-  //     io.in(roomId).emit('update_current_player', room.currentPlayerId);
-      
-  //     emitGameState(io, room);
-
-  //     console.log(`User ${username} (${socket.id}) joined room ${roomId}`);
-  //   } catch (error) {
-  //     console.error('Error joining room:', error);
-  //     socket.emit('error_message', 'Failed to join room');
-  //   }
-  // });
-
-  // Modified join_room to handle reconnect
-  // socket.on('join_room', async ({ roomId, username }) => {
-  //   try {
-  //     const room = await Room.findById(roomId);
-  //     if (!room) {
-  //       socket.emit('error_message', 'Room does not exist');
-  //       return;
-  //     }
-
-  //     socket.join(roomId);
-  //     socketToRoom.set(socket.id, roomId);
-  //     socket.username = username;
-
-  //     // Check if username already exists
-  //     const existingPlayer = room.players.find(p => p.username === username);
-
-  //     if (existingPlayer) {
-  //       // Reconnect: update socketId
-  //       existingPlayer.socketId = socket.id;
-  //     } else {
-  //       // New player
-  //       room.players.push({
-  //         socketId: socket.id,
-  //         username,
-  //         score: 0,
-  //         gems: { white: 0, blue: 0, green: 0, orange: 0, black: 0, purple: 0, gold: 0 },
-  //         cards: [],
-  //         reservedCards: [],
-  //       });
-  //     }
-
-  //     // Add to playerOrder if new
-  //     if (!room.playerOrder.includes(socket.id)) {
-  //       room.playerOrder.push(socket.id);
-  //     }
-
-  //     // Fix currentPlayerId if null
-  //     if (!room.currentPlayerId) {
-  //       room.currentPlayerId = room.playerOrder[0];
-  //     }
-
-  //     await room.save();
-
-  //     const usernames = room.players.map(p => p.username);
-  //     io.in(roomId).emit('update_players', usernames);
-  //     io.in(roomId).emit('update_current_player', room.currentPlayerId);
-  //     emitGameState(io, room);
-
-  //     console.log(`User ${username} (${socket.id}) joined/reconnected to room ${roomId}`);
-  //   } catch (error) {
-  //     console.error('Error joining room:', error);
-  //     socket.emit('error_message', 'Failed to join room');
-  //   }
-  // });
-
   socket.on("check_room_status", async ({ roomId }, callback) => {
     const room = await Room.findById(roomId);
 
@@ -635,6 +523,11 @@ io.on('connection', (socket) => {
         if (room.currentPlayerId === oldSocketId) {
           room.currentPlayerId = socket.id;
         }
+
+        // Update host if reconnecting player was host
+        if (room.host === oldSocketId) {
+          room.host = socket.id;
+        }
       } else {
         // New player joining
         room.players.push({
@@ -649,6 +542,9 @@ io.on('connection', (socket) => {
         // Add new player's socket.id to playerOrder
         room.playerOrder.push(socket.id);
       }
+
+      const isHost = room.host === socket.id;
+      socket.emit('host_status', isHost);
 
       // Fix currentPlayerId if null
       if (!room.currentPlayerId) {

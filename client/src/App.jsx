@@ -4,7 +4,8 @@
 // import Lobby from './pages/Lobby';
 // import WaitingRoom from './pages/WaitingRoom';
 // import GameRoom from './pages/GameRoom';
-// import RoomNotFound from './pages/RoomNotFound'
+// import RoomNotFound from './pages/RoomNotFound';
+// import RoomLocked from './pages/RoomLocked';
 // import GameAlreadyStarted from './pages/GameAlreadyStarted';
 
 // export default function App() {
@@ -12,6 +13,7 @@
 //     <Routes>
 //       <Route path="/" element={<Lobby />} />
 //       <Route path="/room-not-found" element={<RoomNotFound />} />
+//       <Route path="/room-locked" element={<RoomLocked />} />
 //       <Route path="/game-already-started" element={<GameAlreadyStarted />} />
 //       <Route path="/room/:roomId/waiting" element={<WaitingRoom />} />
 //       <Route path="/room/:roomId/play" element={<GameRoom />} />
@@ -27,13 +29,15 @@ import Lobby from './pages/Lobby';
 import WaitingRoom from './pages/WaitingRoom';
 import GameRoom from './pages/GameRoom';
 import ProtectedRoute from './util/ProtectedRoute';
-import RoomNotFound from './pages/RoomNotFound'
+import RoomNotFound from './pages/RoomNotFound';
+import RoomLocked from './pages/RoomLocked';
 import GameAlreadyStarted from './pages/GameAlreadyStarted';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/room-not-found" element={<RoomNotFound />} />
+      <Route path="/room-locked" element={<RoomLocked />} />
       <Route path="/game-already-started" element={<GameAlreadyStarted />} />
       <Route path="/gate" element={<AccessGate />} />
       <Route
