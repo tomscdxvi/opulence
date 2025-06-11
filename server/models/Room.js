@@ -34,6 +34,10 @@ const playerSchema = new mongoose.Schema({
 const roomSchema = new mongoose.Schema({
   _id: String, // roomId from nanoid
   createdAt: { type: Date, default: Date.now },
+  locked: {
+    type: Boolean,
+    default: false,
+  },
   host: { type: String, required: true },  // store socket ID or user ID of host
   gameStarted: { type: Boolean, required: true, default: false },
   currentPlayerId: { type: String, default: null },

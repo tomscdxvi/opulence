@@ -3,6 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { socket } from '../../util/socket';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+
+import ChatPop from '../../assets/sounds/pop.wav';
+import JoinPop from '../../assets/sounds/join.wav';
+
+
 
 export default function WaitingRoom() {
   const { roomId } = useParams();
@@ -16,6 +22,12 @@ export default function WaitingRoom() {
   const [roomClosed, setRoomClosed] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(isMuted);
+
+  const [roomCodeVisible, setRoomCodeVisible] = useState(true);
+  const [isRoomLocked, setIsRoomLocked] = useState(false);
 
   useEffect(() => {
     socket.emit("check_room_status", { roomId }, (response) => {
@@ -35,6 +47,28 @@ export default function WaitingRoom() {
     }
   }, [roomId]);
 
+  const playChatSound = () => {
+    if (!isMutedRef.current) {
+      const audio = new Audio(ChatPop);
+      audio.play().catch(err => {
+        console.warn('Sound failed to play:', err);
+      });
+    }
+  };
+
+  const playJoinSound = () => {
+    if (!isMutedRef.current) {
+      const audio = new Audio(JoinPop);
+      audio.play().catch(err => {
+        console.warn('Sound failed to play:', err);
+      });
+    }
+  }
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
   useEffect(() => {
     if (!nameSubmitted) return;
 
@@ -48,10 +82,24 @@ export default function WaitingRoom() {
         navigate("/room-not-found");
         return;
       }
+
+      if (response?.error === "room_locked") {
+        setError("This room is currently locked.");
+        return;
+      }
     });
 
-    socket.on('receive_message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
+    socket.on('room_lock_status', (locked) => {
+      setIsRoomLocked(locked);
+    });
+
+    socket.on('receive_message', ({ sender, text }) => {
+      setMessages((prev) => [...prev, { sender, text }]);
+
+      // Only play the sound if the message is from someone else
+      if (sender !== username && !isMuted) {
+        playChatSound();
+      }
     });
 
     socket.on('start_game', (response) => {
@@ -66,6 +114,8 @@ export default function WaitingRoom() {
 
     socket.on('update_players', (updatedList) => {
       setPlayers(updatedList);
+
+      playJoinSound();
     });
 
     socket.on('room_closed', () => {
@@ -100,6 +150,7 @@ export default function WaitingRoom() {
     return () => {
       socket.off('receive_message');
       socket.off('start_game');
+      socket.off('room_lock_status');
       socket.off('update_players');
       socket.off('room_closed');
       socket.off('connect');
@@ -202,8 +253,35 @@ export default function WaitingRoom() {
       <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <div>
           <div style={{ textAlign: 'center' }}>
-            <h2>Waiting Room for: {roomId}</h2>
-            <p>Share this link to invite: <b>{window.location.href}</b></p>
+            <h2>
+              Waiting Room for: 
+              {roomCodeVisible ? ` ${roomId}` : ' [Hidden]'}
+              <div
+                onClick={() => setRoomCodeVisible(prev => !prev)}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  userSelect: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  marginLeft: '12px'
+                }}
+                title={roomCodeVisible ? 'Hide Room Code' : 'Show Room Code'}
+              >
+                {roomCodeVisible ? <FaEyeSlash /> : <FaEye />}
+              </div>
+            </h2>
+
+            <p>
+              Share this link to invite: 
+              <b style={{ marginLeft: 4 }}>
+                {roomCodeVisible ? window.location.href : '[Hidden]'}
+              </b>
+            </p>
+
+            <p style={{ fontWeight: 'bold', color: isRoomLocked ? 'red' : 'green' }}>
+              {isRoomLocked ? 'Room is locked — no new players can join' : 'Room is open'}
+            </p>
           </div>
 
           <div style={{ marginTop: '36px' }}>
@@ -252,7 +330,7 @@ export default function WaitingRoom() {
               <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
                 [{new Date().toLocaleTimeString()}]
               </span>
-              <span>{msg}</span>
+              <span><strong>{msg.sender}:</strong> {msg.text}</span>
             </div>
           ))}
           <div ref={messagesEndRef} />
@@ -312,6 +390,22 @@ export default function WaitingRoom() {
           </button>
         </div>
 
+        <button
+  onClick={() => setIsMuted((prev) => !prev)}
+  style={{
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#eee',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    cursor: 'pointer',
+  }}
+>
+  {isMuted ? '🔇 Muted' : '🔊 Sound On'}
+</button>
+
             {/* 
           <button 
             onClick={startGame} 
@@ -329,33 +423,54 @@ export default function WaitingRoom() {
           </button>
           */}
 
-          <button
-            onClick={startGame}
-            style={{
-              width: '100%',
-              marginTop: 24,
-              padding: '10px 16px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              backgroundColor: '#82589F',
-              color: '#fff',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              boxShadow: '0 2px 5px rgba(108, 92, 231, 0.4)', // purple shadow
-              transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = '#B33771';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(162, 155, 254, 0.6)'; // lighter purple shadow
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = '#82589F';
-              e.currentTarget.style.boxShadow = '0 2px 5px rgba(108, 92, 231, 0.4)';
-            }}
-          >
-            Start Game
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
+            <button
+              onClick={startGame}
+              style={{
+                padding: '10px 16px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                backgroundColor: '#82589F',
+                color: '#fff',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                boxShadow: '0 2px 5px rgba(108, 92, 231, 0.4)', // purple shadow
+                transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = '#B33771';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(162, 155, 254, 0.6)'; // lighter purple shadow
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = '#82589F';
+                e.currentTarget.style.boxShadow = '0 2px 5px rgba(108, 92, 231, 0.4)';
+              }}
+            >
+              Start Game
+            </button>
 
+            <button
+              onClick={() => {
+                socket.emit('toggle_room_lock', { roomId }, (res) => {
+                  if (res?.error) {
+                    alert(res.error);
+                  } else {
+                    setIsRoomLocked(res.locked);
+                  }
+                });
+              }}
+              style={{
+                padding: '10px 16px',
+                fontWeight: 'bold',
+                borderRadius: '6px',
+                backgroundColor: isRoomLocked ? '#d63031' : '#00b894',
+                color: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              {isRoomLocked ? '🔒' : '🔓'}
+            </button>
+          </div>
         </div>
       </div>
     </>

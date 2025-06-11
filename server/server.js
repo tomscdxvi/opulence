@@ -602,6 +602,8 @@ io.on('connection', (socket) => {
         return;
       }
 
+      if (room.locked) return callback({ error: 'room_locked' });
+
       // 🚫 Check if game has already started
       if (room.gameStarted) {
         if (typeof callback === 'function') {
@@ -665,6 +667,19 @@ io.on('connection', (socket) => {
       console.error('Error joining room:', error);
       socket.emit('error_message', 'Failed to join room');
     }
+  });
+
+  socket.on('toggle_room_lock', async ({ roomId }, callback) => {
+    const room = await Room.findById(roomId);
+    if (!room) return callback({ error: 'room_not_found' });
+
+    if (socket.id !== room.host) return callback({ error: 'not_host' });
+
+    room.locked = !room.locked;
+    await room.save();
+
+    io.in(roomId).emit('room_lock_status', room.locked); // Broadcast to all clients
+    callback({ success: true, locked: room.locked });
   });
 
   // Leave Room
@@ -876,13 +891,16 @@ io.on('connection', (socket) => {
 
   // Here is the send_message handler you want:
   socket.on('send_message', ({ room, message }) => {
-    if (!room || !message) return; // basic validation
+    if (!room || !message) return;
 
-    // Compose a message object or string with sender info
-    const fullMessage = `${socket.username || 'Anonymous'}: ${message}`;
+    const sender = socket.username || 'Anonymous';
 
-    // Emit to everyone in the room, including sender:
-    io.to(room).emit('receive_message', fullMessage);
+    const messageData = {
+      sender,
+      text: message,
+    };
+
+    io.to(room).emit('receive_message', messageData);
   });
 
   // Handle disconnect (clean up player)
@@ -993,33 +1011,34 @@ io.on('connection', (socket) => {
 
       const player = room.players.find(p => p.socketId === socketId);
       const username = player?.username ?? 'Unknown';
-
       const isHost = socketId === room.host;
 
-
       if (isHost) {
-        // Emit room closed to all players including host socket by sending to the host socket explicitly
+        // Notify host
         io.to(socketId).emit('room_closed', {
           message: `You (host) have disconnected. Room is now closed.`,
         });
 
-        // Emit to all other players (excluding host socket)
-        socket.to(roomId).emit('receive_message', `System: Host ${username} disconnected. Room is closed.`);
+        // Notify others
+        socket.to(roomId).emit('receive_message', {
+          sender: 'System',
+          text: `Host ${username} disconnected. Room is closed.`,
+        });
         socket.to(roomId).emit('room_closed');
 
-        // Delete room
         await Room.findByIdAndDelete(roomId);
-
         console.log(`Room ${roomId} deleted because host disconnected.`);
         return;
       }
 
-      // Wait 10 seconds to allow reconnect
+      // Non-host: allow reconnect window
       setTimeout(async () => {
         const roomAfterDelay = await Room.findById(roomId);
         if (!roomAfterDelay) return;
 
-        const stillMissing = !roomAfterDelay.players.some(p => p.username === username && p.socketId !== socketId);
+        const stillMissing = !roomAfterDelay.players.some(
+          p => p.username === username && p.socketId !== socketId
+        );
         if (!stillMissing) {
           console.log(`${username} has reconnected, skipping removal`);
           return;
@@ -1037,11 +1056,16 @@ io.on('connection', (socket) => {
         const usernames = roomAfterDelay.players.map(p => p.username);
         io.in(roomId).emit('update_players', usernames);
         io.in(roomId).emit('update_current_player', roomAfterDelay.currentPlayerId);
-        io.in(roomId).emit('receive_message', `${username} has disconnected (timed out).`);
+
+        // 👇 Updated structured message
+        io.in(roomId).emit('receive_message', {
+          sender: 'System',
+          text: `${username} has disconnected (timed out).`,
+        });
 
         socketToRoom.delete(socketId);
         console.log(`User ${username} (${socketId}) removed from room ${roomId} after timeout`);
-      }, 10000); // 10 second reconnect window
+      }, 10000);
     } catch (error) {
       console.error('Error in delayed disconnect:', error);
     }
