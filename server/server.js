@@ -466,27 +466,175 @@ io.on('connection', (socket) => {
   });
 
   // Join Room
-  socket.on('join_room', async ({ roomId, username }) => {
+  
+  // socket.on('join_room', async ({ roomId, username }) => {
+  //   try {
+  //     const room = await Room.findById(roomId);
+  //     if (!room) {
+  //       socket.emit('error_message', 'Room does not exist');
+  //       return;
+  //     }
+
+  //     socket.join(roomId);
+  //     socketToRoom.set(socket.id, roomId);
+
+  //     // Store username on socket for later message sending
+  //     socket.username = username; 
+
+  //     console.log('join_room: loaded room:', room);
+
+  //     // Check if player already exists in players array by socket.id
+  //     const existingPlayer = room.players.find(p => p.socketId === socket.id);
+
+  //     if (!existingPlayer) {
+  //       // Add new player object
+  //       room.players.push({
+  //         socketId: socket.id,
+  //         username,
+  //         score: 0,
+  //         gems: { white: 0, blue: 0, green: 0, orange: 0, black: 0, purple: 0, gold: 0 },
+  //         cards: [],
+  //         reservedCards: [],
+  //       });
+  //     }
+
+  //     // Add socket.id to playerOrder if not present
+  //     if (!Array.isArray(room.playerOrder)) room.playerOrder = [];
+  //     if (!room.playerOrder.includes(socket.id)) room.playerOrder.push(socket.id);
+
+  //     // Set currentPlayerId if none set
+  //     if (!room.currentPlayerId) room.currentPlayerId = room.playerOrder[0];
+
+  //     await room.save();
+
+  //     // Extract usernames for update_players event
+  //     const usernames = room.players.map(p => p.username);
+
+  //     io.in(roomId).emit('update_players', usernames);
+  //     io.in(roomId).emit('update_current_player', room.currentPlayerId);
+      
+  //     emitGameState(io, room);
+
+  //     console.log(`User ${username} (${socket.id}) joined room ${roomId}`);
+  //   } catch (error) {
+  //     console.error('Error joining room:', error);
+  //     socket.emit('error_message', 'Failed to join room');
+  //   }
+  // });
+
+  // Modified join_room to handle reconnect
+  // socket.on('join_room', async ({ roomId, username }) => {
+  //   try {
+  //     const room = await Room.findById(roomId);
+  //     if (!room) {
+  //       socket.emit('error_message', 'Room does not exist');
+  //       return;
+  //     }
+
+  //     socket.join(roomId);
+  //     socketToRoom.set(socket.id, roomId);
+  //     socket.username = username;
+
+  //     // Check if username already exists
+  //     const existingPlayer = room.players.find(p => p.username === username);
+
+  //     if (existingPlayer) {
+  //       // Reconnect: update socketId
+  //       existingPlayer.socketId = socket.id;
+  //     } else {
+  //       // New player
+  //       room.players.push({
+  //         socketId: socket.id,
+  //         username,
+  //         score: 0,
+  //         gems: { white: 0, blue: 0, green: 0, orange: 0, black: 0, purple: 0, gold: 0 },
+  //         cards: [],
+  //         reservedCards: [],
+  //       });
+  //     }
+
+  //     // Add to playerOrder if new
+  //     if (!room.playerOrder.includes(socket.id)) {
+  //       room.playerOrder.push(socket.id);
+  //     }
+
+  //     // Fix currentPlayerId if null
+  //     if (!room.currentPlayerId) {
+  //       room.currentPlayerId = room.playerOrder[0];
+  //     }
+
+  //     await room.save();
+
+  //     const usernames = room.players.map(p => p.username);
+  //     io.in(roomId).emit('update_players', usernames);
+  //     io.in(roomId).emit('update_current_player', room.currentPlayerId);
+  //     emitGameState(io, room);
+
+  //     console.log(`User ${username} (${socket.id}) joined/reconnected to room ${roomId}`);
+  //   } catch (error) {
+  //     console.error('Error joining room:', error);
+  //     socket.emit('error_message', 'Failed to join room');
+  //   }
+  // });
+
+  socket.on("check_room_status", async ({ roomId }, callback) => {
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return callback({ error: "room_not_found" });
+    }
+
+    if (room.gameStarted) {
+      return callback({ error: "game_already_started" });
+    }
+
+    return callback({ ok: true });
+  });
+
+  socket.on('join_room', async ({ roomId, username }, callback) => {
     try {
       const room = await Room.findById(roomId);
       if (!room) {
-        socket.emit('error_message', 'Room does not exist');
+        // Safely check if callback is a function before calling it
+        if (typeof callback === 'function') {
+          return callback({ error: 'room_not_found' });
+        }
+        return;
+      }
+
+      // 🚫 Check if game has already started
+      if (room.gameStarted) {
+        if (typeof callback === 'function') {
+          return callback({ error: "game_already_started" });
+        }
+
         return;
       }
 
       socket.join(roomId);
       socketToRoom.set(socket.id, roomId);
+      socket.username = username;
 
-      // Store username on socket for later message sending
-      socket.username = username; 
+      // Find existing player by username
+      const existingPlayer = room.players.find(p => p.username === username);
 
-      console.log('join_room: loaded room:', room);
+      if (existingPlayer) {
+        // Player reconnecting: update socketId
+        const oldSocketId = existingPlayer.socketId;
+        existingPlayer.socketId = socket.id;
 
-      // Check if player already exists in players array by socket.id
-      const existingPlayer = room.players.find(p => p.socketId === socket.id);
+        // Update playerOrder to replace old socketId with new socket.id
+        const index = room.playerOrder.indexOf(oldSocketId);
+        if (index !== -1) {
+          room.playerOrder[index] = socket.id;
+        }
 
-      if (!existingPlayer) {
-        // Add new player object
+        // Update currentPlayerId if it matches oldSocketId
+        if (room.currentPlayerId === oldSocketId) {
+          room.currentPlayerId = socket.id;
+        }
+      } else {
+        // New player joining
         room.players.push({
           socketId: socket.id,
           username,
@@ -495,26 +643,24 @@ io.on('connection', (socket) => {
           cards: [],
           reservedCards: [],
         });
+
+        // Add new player's socket.id to playerOrder
+        room.playerOrder.push(socket.id);
       }
 
-      // Add socket.id to playerOrder if not present
-      if (!Array.isArray(room.playerOrder)) room.playerOrder = [];
-      if (!room.playerOrder.includes(socket.id)) room.playerOrder.push(socket.id);
-
-      // Set currentPlayerId if none set
-      if (!room.currentPlayerId) room.currentPlayerId = room.playerOrder[0];
+      // Fix currentPlayerId if null
+      if (!room.currentPlayerId) {
+        room.currentPlayerId = room.playerOrder[0];
+      }
 
       await room.save();
 
-      // Extract usernames for update_players event
       const usernames = room.players.map(p => p.username);
-
       io.in(roomId).emit('update_players', usernames);
       io.in(roomId).emit('update_current_player', room.currentPlayerId);
-      
       emitGameState(io, room);
 
-      console.log(`User ${username} (${socket.id}) joined room ${roomId}`);
+      console.log(`User ${username} (${socket.id}) joined/reconnected to room ${roomId}`);
     } catch (error) {
       console.error('Error joining room:', error);
       socket.emit('error_message', 'Failed to join room');
@@ -580,11 +726,12 @@ io.on('connection', (socket) => {
   });
 
   // Start Game (host only)
-  socket.on('start_game', async (roomId) => {
+  socket.on('start_game', async (roomId, callback) => {
     try {
       const room = await Room.findById(roomId);
       if (!room) {
-        console.warn(`start_game: room ${roomId} not found`);
+        // Inform client room doesn't exist
+        if (callback) callback({ error: 'room_not_found' });
         return;
       }
 
@@ -739,62 +886,167 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnect (clean up player)
-  socket.on('disconnect', async () => {
-    console.log(`User disconnected: ${socket.id}`);
+  // socket.on('disconnect', async () => {
+  //   console.log(`User disconnected: ${socket.id}`);
 
-    const roomId = socketToRoom.get(socket.id);
+  //   const roomId = socketToRoom.get(socket.id);
+  //   if (!roomId) return;
+
+  //   try {
+  //     const room = await Room.findById(roomId);
+  //     if (!room) return;
+
+  //     // Find the disconnecting player
+  //     const player = room.players.find(p => p.socketId === socket.id);
+  //     const username = player ? player.username : 'Unknown';
+
+  //     // Remove player from players array
+  //     room.players = room.players.filter(p => p.socketId !== socket.id);
+
+  //     // Remove from playerOrder array
+  //     if (Array.isArray(room.playerOrder)) {
+  //       room.playerOrder = room.playerOrder.filter(id => id !== socket.id);
+  //     }
+
+  //     // Check if host disconnected
+  //     const isHost = socket.id === room.host;
+
+  //     if (isHost) {
+  //       // Delete the whole room if host disconnected
+  //       await Room.findByIdAndDelete(roomId);
+
+  //       console.log(`Emitting room_closed for room ${roomId}`);
+  //       io.in(roomId).emit('receive_message', `System: Host ${username} disconnected. Room is closed.`);
+  //       io.in(roomId).emit('room_closed');
+  //       console.log(`Room ${roomId} deleted because host disconnected.`);
+  //     } else {
+  //       // Update currentPlayerId if needed
+  //       if (room.currentPlayerId === socket.id) {
+  //         room.currentPlayerId = room.playerOrder.length > 0 ? room.playerOrder[0] : null;
+  //       }
+
+  //       await room.save();
+
+  //       // Emit updated player list and current player
+  //       const usernames = room.players.map(p => p.username);
+  //       io.in(roomId).emit('update_players', usernames);
+  //       io.in(roomId).emit('update_current_player', room.currentPlayerId);
+
+  //       // Notify others that player left
+  //       io.in(roomId).emit('receive_message', `${username} has disconnected.`);
+  //     }
+
+  //     socket.leave(roomId);
+  //     socketToRoom.delete(socket.id);
+  //   } catch (error) {
+  //     console.error('Error handling disconnect:', error);
+  //   }
+  // });
+
+  socket.on('reconnect_player', async ({ roomId, username }) => {
+    try {
+      const room = await Room.findById(roomId);
+      if (!room) {
+        socket.emit('error_message', 'Room not found');
+        return;
+      }
+
+      // Find player by username
+      const player = room.players.find(p => p.username === username);
+      if (!player) {
+        socket.emit('error_message', 'Player not found in room');
+        return;
+      }
+
+      // Update player's socketId to new socket.id
+      player.socketId = socket.id;
+
+      await room.save();
+
+      // Update socketToRoom mapping
+      socketToRoom.set(socket.id, roomId);
+
+      // Notify updated players list to everyone in room
+      const usernames = room.players.map(p => p.username);
+      io.in(roomId).emit('update_players', usernames);
+
+      // Optionally send success message to this client
+      socket.emit('reconnect_success');
+
+      console.log(`Player ${username} reconnected with new socket ID ${socket.id}`);
+    } catch (error) {
+      console.error('Error on reconnect_player:', error);
+      socket.emit('error_message', 'Internal server error during reconnect');
+    }
+  });
+
+
+  // Delay player removal for reconnect window
+  socket.on('disconnect', async () => {
+    const socketId = socket.id;
+    const roomId = socketToRoom.get(socketId);
     if (!roomId) return;
 
     try {
       const room = await Room.findById(roomId);
       if (!room) return;
 
-      // Find the disconnecting player
-      const player = room.players.find(p => p.socketId === socket.id);
-      const username = player ? player.username : 'Unknown';
+      const player = room.players.find(p => p.socketId === socketId);
+      const username = player?.username ?? 'Unknown';
 
-      // Remove player from players array
-      room.players = room.players.filter(p => p.socketId !== socket.id);
+      const isHost = socketId === room.host;
 
-      // Remove from playerOrder array
-      if (Array.isArray(room.playerOrder)) {
-        room.playerOrder = room.playerOrder.filter(id => id !== socket.id);
-      }
-
-      // Check if host disconnected
-      const isHost = socket.id === room.host;
 
       if (isHost) {
-        // Delete the whole room if host disconnected
+        // Emit room closed to all players including host socket by sending to the host socket explicitly
+        io.to(socketId).emit('room_closed', {
+          message: `You (host) have disconnected. Room is now closed.`,
+        });
+
+        // Emit to all other players (excluding host socket)
+        socket.to(roomId).emit('receive_message', `System: Host ${username} disconnected. Room is closed.`);
+        socket.to(roomId).emit('room_closed');
+
+        // Delete room
         await Room.findByIdAndDelete(roomId);
 
-        console.log(`Emitting room_closed for room ${roomId}`);
-        io.in(roomId).emit('receive_message', `System: Host ${username} disconnected. Room is closed.`);
-        io.in(roomId).emit('room_closed');
         console.log(`Room ${roomId} deleted because host disconnected.`);
-      } else {
-        // Update currentPlayerId if needed
-        if (room.currentPlayerId === socket.id) {
-          room.currentPlayerId = room.playerOrder.length > 0 ? room.playerOrder[0] : null;
-        }
-
-        await room.save();
-
-        // Emit updated player list and current player
-        const usernames = room.players.map(p => p.username);
-        io.in(roomId).emit('update_players', usernames);
-        io.in(roomId).emit('update_current_player', room.currentPlayerId);
-
-        // Notify others that player left
-        io.in(roomId).emit('receive_message', `${username} has disconnected.`);
+        return;
       }
 
-      socket.leave(roomId);
-      socketToRoom.delete(socket.id);
+      // Wait 10 seconds to allow reconnect
+      setTimeout(async () => {
+        const roomAfterDelay = await Room.findById(roomId);
+        if (!roomAfterDelay) return;
+
+        const stillMissing = !roomAfterDelay.players.some(p => p.username === username && p.socketId !== socketId);
+        if (!stillMissing) {
+          console.log(`${username} has reconnected, skipping removal`);
+          return;
+        }
+
+        roomAfterDelay.players = roomAfterDelay.players.filter(p => p.socketId !== socketId);
+        roomAfterDelay.playerOrder = roomAfterDelay.playerOrder.filter(id => id !== socketId);
+
+        if (roomAfterDelay.currentPlayerId === socketId) {
+          roomAfterDelay.currentPlayerId = roomAfterDelay.playerOrder[0] || null;
+        }
+
+        await roomAfterDelay.save();
+
+        const usernames = roomAfterDelay.players.map(p => p.username);
+        io.in(roomId).emit('update_players', usernames);
+        io.in(roomId).emit('update_current_player', roomAfterDelay.currentPlayerId);
+        io.in(roomId).emit('receive_message', `${username} has disconnected (timed out).`);
+
+        socketToRoom.delete(socketId);
+        console.log(`User ${username} (${socketId}) removed from room ${roomId} after timeout`);
+      }, 10000); // 10 second reconnect window
     } catch (error) {
-      console.error('Error handling disconnect:', error);
+      console.error('Error in delayed disconnect:', error);
     }
   });
+
 });
 
 const connectToMongoDb = async () => {

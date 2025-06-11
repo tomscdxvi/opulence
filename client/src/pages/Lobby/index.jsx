@@ -33,24 +33,33 @@ export default function Lobby() {
     };
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '100px' }}>
-      <h1>Multiplayer Game Lobby</h1>
-
+    <div     
+      style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      width: '100%',
+    }}>
       <div>
-        <input
-          type="text"
-          placeholder="Enter Room Code"
-          value={room}
-          onChange={(e) => setRoom(e.target.value)}
-          style={{ padding: '8px', fontSize: '16px' }}
-        />
-        <button onClick={joinRoom} style={{ marginLeft: '10px' }}>
-          Join Room
-        </button>
-      </div>
+        <h1>Multiplayer Game Lobby</h1>
 
-      <div style={{ marginTop: '20px' }}>
-        <button onClick={createRoom}>Create Room</button>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center ' }}>
+          <input
+            type="text"
+            placeholder="Enter Room Code"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            style={{ padding: '8px', fontSize: '16px' }}
+          />
+          <button onClick={joinRoom} style={{ marginLeft: '10px' }}>
+            Join Room
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center ', marginTop: '24px' }}>
+          <button onClick={createRoom}>Create Room</button>
+        </div>
       </div>
     </div>
   );

@@ -67,7 +67,14 @@ export default function PlayBoard({ gameState, currentPlayerId }) {
   const playerId = currentPlayerId;
 
   // Sanity checks
-  if (!currentPlayer) return <div>Could not find current player</div>;
+  if (!currentPlayer) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '100px' }}>
+        <h2>The room may be closed or expired.</h2>
+        <button onClick={() => window.location.href = '/'}>Return Home</button>
+      </div>
+    );
+  }
 
   const handleTakeGem = (gemName) => {
     socket.emit("player_action", {

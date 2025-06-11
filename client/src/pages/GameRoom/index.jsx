@@ -53,9 +53,16 @@ export default function GameRoom() {
       setRoomClosed(true);
     });
 
+    socket.on('connect', () => {
+      console.log('Reconnected to server');
+      socket.emit('join_room', { roomId, username });
+      socket.emit('request_game_state', { roomId });
+    });
+
     return () => {
       socket.off('update_game_state');
       socket.off('room_closed');
+      socket.off('connect');
     };
   }, [roomId, navigate]);
 
