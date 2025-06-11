@@ -1,18 +1,22 @@
 // AccessGate.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function AccessGate() {
   const [inputCode, setInputCode] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
-    const correctCode = import.meta.env.VITE_ACCESS_CODE;
+  const correctCode = import.meta.env.VITE_ACCESS_CODE;
+
+  // Redirect path defaults to "/" if none provided
+  const redirectPath = location.state?.from?.pathname || '/';
 
   const handleSubmit = () => {
     if (inputCode === correctCode) {
       sessionStorage.setItem('hasAccess', 'true');
-      navigate('/'); // to the Lobby
+      navigate(redirectPath, { replace: true });
     } else {
       setError('Incorrect code');
     }

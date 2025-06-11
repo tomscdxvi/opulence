@@ -1,9 +1,9 @@
 {
-    "gems": [
-        { "white": 7 },
-        { "green": 7 },
-        { "orange": 7 },
-        { "black": 7 },
-        { "purple": 7 }
-    ]
+    "white": 7,
+    "green": 7,
+    "orange": 7,
+    "black": 7,
+    "purple": 7,
+    "wild": 5 
+    
 }

@@ -5,18 +5,18 @@ import BlueCard from '../cards/blue-card';
 import NobleCard from '../cards/noble-card';
 import './playerhand.css';
 
-export default function PlayerHand({ player, side }) {
+import gemImages from "../gems/gems";
+
+export default function PlayerHand({ player, side, isCurrentPlayer }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Group cards by type
-  /*
+  // Group cards by type for detailed view
   const groupedCards = player.cards.reduce((groups, card) => {
-    (groups[card.type] = groups[card.type] || []).push(card);
+    const type = card.type || card.gemType;
+    (groups[type] = groups[type] || []).push(card);
     return groups;
   }, {});
-  */
 
-  // Map card type to corresponding card component
   const cardComponents = {
     green: GreenCard,
     yellow: YellowCard,
@@ -24,52 +24,94 @@ export default function PlayerHand({ player, side }) {
     noble: NobleCard,
   };
 
-  // Calculate total points for player (sum of scores of all cards)
-  // const totalPoints = player.cards.reduce((sum, card) => sum + (card.score || 0), 0);
+  // Calculate gem counts from player's gems if stored in player.gems (adjust as per your model)
+  const gemCounts = player.gems || {};
 
-  return (
-    <div>
-      {/* View Hand Button */}
-      <button onClick={() => setIsOpen(true)} className={`view-hand-button ${side}`}>
-        View Hand
-      </button>
+  // Total cards count
+  const totalCards = player.cards.length;
 
-      {/* Modal */}
-      {isOpen && (
-        <div className="modal-backdrop" onClick={() => setIsOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="close-button" onClick={() => setIsOpen(false)}>✕</button>
+  // Hand container classes for positioning
+  const containerClass = `player-hand-container player-hand-${side}`;
 
-            <h2>Player {player.username}’s Hand</h2>
-            {/* <div><strong>Points:</strong> {totalPoints}</div> */}
+  // For non-current players show summary, for current player show full view + modal
+  if (!isCurrentPlayer) {
+    return (
+      <div className={containerClass} onClick={() => setIsOpen(true)}>
+        <div><strong>{player.username}</strong></div>
+        <div>Cards: {totalCards}</div>
+        <div>
+          {Object.entries(gemCounts).map(([gem, count]) => {
 
-            {/* Render grouped cards */}
-            {['green', 'yellow', 'blue', 'noble'].map((type) => {
-              const cardsOfType = groupedCards[type] || [];
-              if (cardsOfType.length === 0) return null;
+            if (gem === "_id") return null; // skip the MongoDB object ID
+            const gemImg = gemImages[gem];
 
-              const CardComponent = cardComponents[type];
-
-              return (
-                <div key={type}>
-                  <h3>{type.charAt(0).toUpperCase() + type.slice(1)} Cards</h3>
-                  <div className="card-grid">
-                    {cardsOfType.map((card, idx) => (
-                      <CardComponent
-                        key={idx}
-                        score={card.score}
-                        gemType={card.gemType}
-                        cost={card.cost}
-                        onClick={() => { /* implement if needed */ }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+            return (
+              <span key={gem} style={{ margin: '0 0 8px 12px' }}>
+                <img src={gemImg} alt={`${gem} gem`} width={32} style={{ marginRight: 4 }} />
+                <span style={{ fontWeight: 'bold', fontSize: 16 }}>{count}</span>
+              </span>
+            )
+          })}
         </div>
-      )}
+
+        {/* Modal to view full cards */}
+        {isOpen && (
+          <div className="modal-backdrop" onClick={() => setIsOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <button className="close-button" onClick={() => setIsOpen(false)}>✕</button>
+              <h2>{player.username}’s Hand</h2>
+
+              {['green', 'yellow', 'blue', 'noble'].map((type) => {
+                const cardsOfType = groupedCards[type] || [];
+                if (cardsOfType.length === 0) return null;
+                const CardComponent = cardComponents[type];
+                return (
+                  <div key={type}>
+                    <h3>{type.charAt(0).toUpperCase() + type.slice(1)} Cards</h3>
+                    <div className="card-grid">
+                      {cardsOfType.map((card, idx) => (
+                        <CardComponent
+                          key={idx}
+                          score={card.score}
+                          gemType={card.gemType}
+                          cost={card.cost}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // For current player - always show detailed hand at bottom
+  return (
+    <div className={containerClass}>
+      <h2>Your Hand</h2>
+      {['green', 'yellow', 'blue', 'noble'].map((type) => {
+        const cardsOfType = groupedCards[type] || [];
+        if (cardsOfType.length === 0) return null;
+        const CardComponent = cardComponents[type];
+        return (
+          <div key={type}>
+            <h3>{type.charAt(0).toUpperCase() + type.slice(1)} Cards</h3>
+            <div className="card-grid">
+              {cardsOfType.map((card, idx) => (
+                <CardComponent
+                  key={idx}
+                  score={card.score}
+                  gemType={card.gemType}
+                  cost={card.cost}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

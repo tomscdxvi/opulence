@@ -1,8 +1,14 @@
 // ProtectedRoute.jsx
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 export default function ProtectedRoute({ children }) {
   const hasAccess = sessionStorage.getItem('hasAccess') === 'true';
+  const location = useLocation();
 
-  return hasAccess ? children : <Navigate to="/gate" />;
+  if (!hasAccess) {
+    // Send them to /gate but keep track of where they were going
+    return <Navigate to="/gate" state={{ from: location }} replace />;
+  }
+
+  return children;
 }

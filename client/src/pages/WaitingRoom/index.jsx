@@ -13,6 +13,7 @@ export default function WaitingRoom() {
   const [username, setUsername] = useState('');
   const [nameSubmitted, setNameSubmitted] = useState(false); // Track if user has entered their name
   const [error, setError] = useState('');
+  const [roomClosed, setRoomClosed] = useState(false);
 
   useEffect(() => {
     if (!nameSubmitted) return;
@@ -31,10 +32,15 @@ export default function WaitingRoom() {
       setPlayers(updatedList);
     });
 
+    socket.on('room_closed', () => {
+      setRoomClosed(true);
+    });
+
     return () => {
       socket.off('receive_message');
       socket.off('start_game');
       socket.off('update_players');
+      socket.off('room_closed');
     };
   }, [roomId, username, nameSubmitted, navigate]);
 
@@ -49,11 +55,10 @@ export default function WaitingRoom() {
   }, []);
 
   useEffect(() => {
-    const storedRoomId = sessionStorage.getItem('roomId');
-    if (!storedRoomId) {
-      navigate('/');
-      return;
-    }
+      if (!roomId) {
+        navigate('/');
+        return;
+      }
     }, [roomId, navigate]);
 
   const handleNameSubmit = () => {
@@ -93,6 +98,15 @@ export default function WaitingRoom() {
     );
   }
 
+  if (roomClosed) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '100px' }}>
+        <h2>The host has left. The room is now closed.</h2>
+        <button onClick={() => navigate('/')}>Return to Home</button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ textAlign: 'center', marginTop: '30px' }}>
       <h2>Waiting Room for: {roomId}</h2>
@@ -126,7 +140,7 @@ export default function WaitingRoom() {
         />
         <button onClick={sendMessage}>Send</button>
       </div>
-
+        {/* 
       <button 
         onClick={startGame} 
         disabled={players.length !== 4}
@@ -138,6 +152,13 @@ export default function WaitingRoom() {
           padding: '10px',
           fontSize: '16px'
         }}
+      >
+        Start Game
+      </button>
+      */}
+
+      <button 
+        onClick={startGame} 
       >
         Start Game
       </button>
