@@ -206,6 +206,22 @@ function AllPlayersPanel({ players, isOpen, toggleOpen }) {
   );
 }
 
+// Helper to convert a turnLog entry to a readable message string
+function renderLogMessage(log) {
+  switch (log.action) {
+    case 'reserve_card':
+      return `${log.player} reserved a ${log.details.type} card.`;
+    case 'purchase_card':
+      return `${log.player} purchased a ${log.details.type} card.`;
+    case 'collect_gems':
+      return `${log.player} collected gems.`;
+    case 'skip_turn':
+      return `${log.player} skipped their turn.`;
+    default:
+      return `${log.player} performed an action.`;
+  }
+}
+
 export default function PlayBoard({ gameState, playerId }) {
 
   const { roomId } = useParams();
@@ -219,7 +235,29 @@ export default function PlayBoard({ gameState, playerId }) {
 
   const prevIsMyTurnRef = useRef(false);
   const hasMountedRef = useRef(false);
-  const [gameOverData, setGameOverData] = useState(null)
+
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef(null);
+
+  const combinedMessages = React.useMemo(() => {
+    if (!gameState?.turnLog) return messages;
+
+    // Map turn logs to message-like objects
+    const logsAsMessages = gameState.turnLog.map(log => ({
+        sender: 'System',
+        text: renderLogMessage(log),
+        timestamp: new Date(log.timestamp).getTime()
+      }));
+
+      // Combine chat + logs
+      const all = [...messages, ...logsAsMessages];
+
+      // Sort by timestamp ascending
+      return all.sort((a, b) => a.timestamp - b.timestamp);
+  }, [messages, gameState?.turnLog]);
+
+  const [gameOverData, setGameOverData] = useState(null);
 
   const playersArray = Object.values(gameState?.players ?? {});
   const currentPlayer = playersArray.find((p) => p.socketId === playerId);
@@ -235,6 +273,19 @@ export default function PlayBoard({ gameState, playerId }) {
 
     socket.on("prompt_noble_selection", ({ nobles }) => {
       setNobleChoices(nobles);
+    });
+
+    socket.on('receive_message', ({ sender, text }) => {
+      setMessages((prev) => [...prev, { 
+        sender, 
+        text,
+        timestamp: new Date().getTime(), // capture at time of arrival
+      }]);
+
+      // Only play the sound if the message is from someone else
+      if (sender !== username && !isMuted) {
+        playChatSound();
+      }
     });
 
     socket.on("game_over", (data) => {
@@ -253,6 +304,7 @@ export default function PlayBoard({ gameState, playerId }) {
     });
 
     return () => {
+      socket.off('receive_message');
       socket.off("prompt_use_wild_gem");
       socket.off("noble_claimed");
       socket.off("prompt_noble_selection");
@@ -285,6 +337,11 @@ export default function PlayBoard({ gameState, playerId }) {
 
     prevIsMyTurnRef.current = isMyTurn;
   }, [isMyTurn]);
+  
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [combinedMessages]);
 
 
   if (!gameState) return <div>Loading game...</div>;
@@ -353,12 +410,20 @@ export default function PlayBoard({ gameState, playerId }) {
     });
   };
 
+  const sendMessage = () => {
+    if (input.trim()) {
+      socket.emit('send_message', { room: roomId, message: input });
+      setInput('');
+    }
+  };
+
   console.log('gameState:', gameState);
   // console.log('players:', playersArray);
   console.log('currentPlayer:', currentPlayer);
   // console.log('cardsOnBoard:', gameState.cardsOnBoard);
   console.log('gems:', gameState.gemBank);
   console.log(currentPlayer);
+  console.log("turn log:", gameState.turnLog);
 
   // console.log("Player IDs:", playersArray.map(p => p.socketId));
 
@@ -495,50 +560,21 @@ export default function PlayBoard({ gameState, playerId }) {
         />
       )}
 
-      {/* 
-      <div
+      <button
+        onClick={() => setIsMuted((prev) => !prev)}
         style={{
-          position: "relative",
-          width: "20%",
-          height: "100%",
-          pointerEvents: "none",
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          backgroundColor: '#eee',
+          border: 'none',
+          borderRadius: '6px',
+          padding: '8px 12px',
+          cursor: 'pointer',
         }}
       >
-        {playersArray.map((p) => (
-          <PlayerHand
-            key={p.socketId}
-            player={p}
-            side={
-              p.socketId === playerId
-                ? "bottom"
-                : p.socketId === playersArray[1]?.socketId
-                ? "left"
-                : p.socketId === playersArray[2]?.socketId
-                ? "top"
-                : "right"
-            }
-            isCurrentPlayer={p.socketId === playerId}
-            pointerEvents="auto"
-          />
-        ))}
-      </div>
-      */}
-
-        <button
-          onClick={() => setIsMuted((prev) => !prev)}
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            backgroundColor: '#eee',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '8px 12px',
-            cursor: 'pointer',
-          }}
-        >
-          {isMuted ? '🔇 Muted' : '🔊 Sound On'}
-        </button>
+        {isMuted ? '🔇 Muted' : '🔊 Sound On'}
+      </button>
 
       <AllPlayersPanel
         players={playersArray}
@@ -547,8 +583,110 @@ export default function PlayBoard({ gameState, playerId }) {
       />
 
       <CurrentPlayerPanel player={currentPlayer} isMyTurn={isMyTurn} onClick={handleSkipTurn} onCardClick={handlePurchaseCard} />
-
       
+
+      <div style={{ marginLeft: '24px' }}>
+          <div
+            style={{
+              maxWidth: '350px',
+              maxHeight: '200px',
+              overflowY: 'auto',
+              border: '1px solid #e0e0e0',
+              borderRadius: '10px',
+              padding: '12px',
+              backgroundColor: '#fafafa',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+              fontFamily: 'sans-serif',
+              fontSize: '14px',
+              overflowWrap: 'break-word'
+            }}
+          >
+            {combinedMessages.map((msg, i) => (
+              <div
+                key={i}
+                className="message-entry"
+                style={{
+                  padding: '6px 8px',
+                  marginBottom: '6px',
+                  backgroundColor: '#fff',
+                  borderRadius: '6px',
+                  transition: 'background-color 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  color: '#000',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fff';
+                }}
+              >
+                <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
+                  [{new Date(msg.timestamp).toLocaleTimeString()}]
+                </span>
+                <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1, color: '#000' }}><strong>{msg.sender}:</strong> {msg.text}</span>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div
+            style={{
+              marginTop: '20px',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              padding: '0 8px',
+            }}
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type a message"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                fontSize: '14px',
+                borderRadius: '8px',
+                border: '1px solid #ccc',
+                backgroundColor: '#fff',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                outline: 'none',
+                transition: 'border 0.2s ease',
+                color: '#000',
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: '#2d3436',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                transition: 'background-color 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
+            >
+              Send
+            </button>
+          </div>
+      </div>
+
       {gameOverData && (
         <GameOverModal
           winner={gameOverData.winner}

@@ -33,7 +33,7 @@ export default function CardDeck({ deckType, cards, deckCount, onCardClick, onRe
         </div>
 
         {/* Cards */}
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "36px", marginLeft: '24px' }}>
           {cards.length === 0 && <div>No cards available</div>}
           {cards.slice(0, 4).map((card, index) => (
             <div key={card.id || index} style={{ position: "relative" }}>

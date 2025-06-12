@@ -100,7 +100,11 @@ export default function WaitingRoom() {
     });
 
     socket.on('receive_message', ({ sender, text }) => {
-      setMessages((prev) => [...prev, { sender, text }]);
+      setMessages((prev) => [...prev, { 
+        sender, 
+        text,
+        timestamp: new Date().toLocaleTimeString(), // capture at time of arrival
+      }]);
 
       // Only play the sound if the message is from someone else
       if (sender !== username && !isMuted) {
@@ -344,7 +348,7 @@ export default function WaitingRoom() {
                 }}
               >
                 <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
-                  [{new Date().toLocaleTimeString()}]
+                  [{msg.timestamp}]
                 </span>
                 <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1, color: '#000' }}><strong>{msg.sender}:</strong> {msg.text}</span>
               </div>

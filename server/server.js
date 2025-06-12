@@ -1007,6 +1007,8 @@ io.on('connection', (socket) => {
 
       if (actionSucceeded) {
 
+        io.to(room).emit('receive_turn_log', room.turnLog);
+
         await advanceTurn(room);
         
         // Reload the updated room after action completes

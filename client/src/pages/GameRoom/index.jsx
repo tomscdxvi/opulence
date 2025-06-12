@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PlayerHand from '../../components/player-hand';
 import PlayBoard from '../../components/play-board';
@@ -70,21 +70,6 @@ export default function GameRoom() {
   console.log('Received game state:', gameState);
   console.log(currentPlayerId);
 
-  const [confirmationRequest, setConfirmationRequest] = useState(null);
-
-  /*
-  useEffect(() => {
-    socket.on("wild_gem_confirmation", (payload) => {
-      setConfirmationRequest(payload);
-    });
-
-    return () => {
-      socket.off("wild_gem_confirmation");
-    };
-  }, []);
-
-  */
-
   if (roomClosed) {
     return (
       <div style={{ textAlign: 'center', marginTop: '100px' }}>
@@ -108,41 +93,8 @@ export default function GameRoom() {
         overflow: 'hidden',
       }}
     > 
-      {/*
-      {players.map((player, index) => (
-        <PlayerHand
-          key={player.socketId || index}
-          player={player}
-          side={['bottom', 'top', 'left', 'right'][index]}
-          isCurrent={player.socketId === currentPlayerId}
-          isYou={player.username === username}
-        />
-      ))}
-        */}
       <PlayBoard gameState={gameState} playerId={playerId} />
-      {/*
-      {confirmationRequest && (
-        <div className="modal">
-          <p>{confirmationRequest.message}</p>
-          <button onClick={() => {
-            socket.emit("confirm_wild_gem", {
-              roomId,
-              playerId,
-              confirmed: true
-            });
-            setConfirmationRequest(null);
-          }}>Yes</button>
-          <button onClick={() => {
-            socket.emit("confirm_wild_gem", {
-              roomId,
-              playerId,
-              confirmed: false
-            });
-            setConfirmationRequest(null);
-          }}>No</button>
-        </div>
-      )}
-        */}
+
       {error && (
         <div style={{ color: 'red', position: 'absolute', top: 10 }}>
           {error}
