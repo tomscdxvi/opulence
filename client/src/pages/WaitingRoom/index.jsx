@@ -8,6 +8,8 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import ChatPop from '../../assets/sounds/pop.wav';
 import JoinPop from '../../assets/sounds/join.wav';
 
+// TODO: Separate the Message Box and PLayers in room from hte waiting room for ... and share this link etc... so it doesn't resize it
+
 export default function WaitingRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();

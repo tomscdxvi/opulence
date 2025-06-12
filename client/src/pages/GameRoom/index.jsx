@@ -72,6 +72,7 @@ export default function GameRoom() {
 
   const [confirmationRequest, setConfirmationRequest] = useState(null);
 
+  /*
   useEffect(() => {
     socket.on("wild_gem_confirmation", (payload) => {
       setConfirmationRequest(payload);
@@ -81,6 +82,8 @@ export default function GameRoom() {
       socket.off("wild_gem_confirmation");
     };
   }, []);
+
+  */
 
   if (roomClosed) {
     return (
@@ -116,7 +119,8 @@ export default function GameRoom() {
         />
       ))}
         */}
-      <PlayBoard gameState={gameState} currentPlayerId={currentPlayerId} playerId={playerId} />
+      <PlayBoard gameState={gameState} playerId={playerId} />
+      {/*
       {confirmationRequest && (
         <div className="modal">
           <p>{confirmationRequest.message}</p>
@@ -138,6 +142,7 @@ export default function GameRoom() {
           }}>No</button>
         </div>
       )}
+        */}
       {error && (
         <div style={{ color: 'red', position: 'absolute', top: 10 }}>
           {error}

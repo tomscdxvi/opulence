@@ -40,6 +40,7 @@ const roomSchema = new mongoose.Schema({
   },
   host: { type: String, required: true },  // store socket ID or user ID of host
   gameStarted: { type: Boolean, required: true, default: false },
+  gameOver: { type: Boolean, required: true, default: false },
   currentPlayerId: { type: String, default: null },
   playerOrder: {
     type: [String], // Array of socket IDs in order
@@ -70,9 +71,9 @@ const roomSchema = new mongoose.Schema({
   },
   turnLog: {
     type: [new mongoose.Schema({
-      playerId: String,
+      player: String,
       action: String,
-      cardId: String,
+      details: Object,
       timestamp: { type: Date, default: Date.now }
     }, { _id: false })],
     default: []

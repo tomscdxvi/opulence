@@ -90,6 +90,10 @@ async function advanceTurn(room) {
   await room.save();
 }
 
+function checkWinCondition(player) {
+  return player.score >= 15;
+}
+
 // Validate gem selection against Splendor rules
 function validateGemSelection(room, gemSelection) {
   const gemsTaken = Object.entries(gemSelection).filter(([_, count]) => count > 0);
@@ -114,25 +118,44 @@ function validateGemSelection(room, gemSelection) {
 }
 
 // Collect gems action
-async function collectGems(io, room, socketId, gemSelection) {
-  const player = room.players.find(p => p.socketId === socketId);
-  if (!player) return false;
+async function collectGems(io, roomId, socketId, gemSelection) {
+  // Fetch the room object from the database
+  const room = await Room.findById(roomId);
 
+  if (!room) {
+    io.to(socketId).emit('error_message', 'Room not found.');
+    return false;
+  }
+
+  // Defensive: make sure players array exists
+  const players = room.players || [];
+
+  // Find the player by socketId
+  const player = players.find(p => p.socketId === socketId);
+  if (!player) {
+    io.to(socketId).emit('error_message', 'Player not found in room.');
+    return false;
+  }
+
+  // Check if it's the player's turn
   if (!isPlayersTurn(room, socketId)) {
     io.to(socketId).emit('error_message', 'It is not your turn.');
     return false;
   }
 
+  // Check if player must return gems before collecting more
   if (player.mustReturnGems) {
     io.to(socketId).emit('error_message', 'You must return gems before collecting more.');
     return false;
   }
 
+  // Validate the gem selection
   if (!validateGemSelection(room, gemSelection)) {
     io.to(socketId).emit('error_message', 'Invalid gem selection according to game rules.');
     return false;
   }
 
+  // Calculate total gems after collection
   const gemsCollected = Object.values(gemSelection).reduce((sum, val) => sum + val, 0);
   const currentGems = totalGems(player.gems);
   const totalAfter = currentGems + gemsCollected;
@@ -142,18 +165,23 @@ async function collectGems(io, room, socketId, gemSelection) {
     return false;
   }
 
-  // Check gem bank and update player gems & bank accordingly
+  // Update gem bank and player gems atomically
   for (const [gem, amount] of Object.entries(gemSelection)) {
     const bankAmount = room.gemBank.get(gem) ?? 0;
-    if (bankAmount >= amount) {
-      room.gemBank.set(gem, bankAmount - amount);
-      player.gems[gem] = (player.gems[gem] || 0) + amount;
-    } else {
+    if (bankAmount < amount) {
       io.to(socketId).emit('error_message', `Not enough ${gem} gems available.`);
       return false;
     }
   }
 
+  // If all checks pass, update gems
+  for (const [gem, amount] of Object.entries(gemSelection)) {
+    const bankAmount = room.gemBank.get(gem) ?? 0;
+    room.gemBank.set(gem, bankAmount - amount);
+    player.gems[gem] = (player.gems[gem] || 0) + amount;
+  }
+
+  // Log the action
   room.turnLog.push({
     player: player.username,
     action: 'collect_gems',
@@ -162,6 +190,10 @@ async function collectGems(io, room, socketId, gemSelection) {
   });
 
   await room.save();
+
+  // ✅ emit updated game state to all players in the room
+  emitGameState(io, room);
+
   return true;
 }
 
@@ -184,13 +216,45 @@ function canAfford(card, player) {
   if (missing > wildGems) {
     return { canBuy: false, missing, needsWild: wildGems > 0 };
   }
+
+  console.log("checking affordability:", {
+    cardCost: card.cost,
+    playerGems: player.gems,
+    discount,
+    missing,
+    wildGems
+  });
+
   return { canBuy: true, missing, needsWild: missing > 0 };
 }
 
+function getEligibleNobles(player, nobleCards) {
+  return nobleCards.filter(noble => {
+    return Object.entries(noble.cost).every(([gem, amount]) => {
+      return (player.cardGems[gem] || 0) >= amount;
+    });
+  });
+}
+
 // Purchase a card action, with wild gem usage confirmation
-async function purchaseCard(io, room, socketId, cardId, confirmWildUse = false) {
-  const player = room.players.find(p => p.socketId === socketId);
-  if (!player) return false;
+async function purchaseCard(io, roomId, socketId, cardId, confirmWildUse = false) {
+  // Fetch the room object from the database
+  const room = await Room.findById(roomId);
+
+  if (!room) {
+    io.to(socketId).emit('error_message', 'Room not found.');
+    return false;
+  }
+
+  // Defensive: make sure players array exists
+  const players = room.players || [];
+
+  // Find the player by socketId
+  const player = players.find(p => p.socketId === socketId);
+  if (!player) {
+    io.to(socketId).emit('error_message', 'Player not found in room.');
+    return false;
+  }
 
   if (!isPlayersTurn(room, socketId)) {
     io.to(socketId).emit('error_message', 'It is not your turn.');
@@ -236,6 +300,7 @@ async function purchaseCard(io, room, socketId, cardId, confirmWildUse = false) 
     return false;
   }
 
+
   // If wild gems needed and confirmation is not given, prompt user to confirm
   if (affordCheck.needsWild && !confirmWildUse) {
     io.to(socketId).emit('prompt_use_wild_gem', {
@@ -252,16 +317,17 @@ async function purchaseCard(io, room, socketId, cardId, confirmWildUse = false) 
     const discountedCost = Math.max(0, amount - discountAmount);
 
     let payFromGems = Math.min(player.gems[gem] || 0, discountedCost);
-    player.gems[gem] -= payFromGems;
+    player.gems[gem] = (player.gems[gem] || 0) - payFromGems;
     room.gemBank.set(gem, (room.gemBank.get(gem) ?? 0) + payFromGems);
 
     const remaining = discountedCost - payFromGems;
     if (remaining > 0) {
-      player.gems.wild -= remaining;
+      player.gems.wild = (player.gems.wild || 0) - remaining;
       room.gemBank.set('wild', (room.gemBank.get('wild') ?? 0) + remaining);
     }
   }
 
+  console.log("Card To Buy", cardToBuy);
   // Add card to player's owned cards & update cardGems count
   player.cards.push(cardToBuy);
   if (cardToBuy.gemType) {
@@ -274,14 +340,99 @@ async function purchaseCard(io, room, socketId, cardId, confirmWildUse = false) 
   // Remove card from board or reserved cards
   if (cardSourceType) {
     const boardCards = room.cardsOnBoard.get(cardSourceType);
-    room.cardsOnBoard.set(cardSourceType, boardCards.filter(c => c.id !== cardId));
+    const cardIndex = boardCards.findIndex(c => c.id === cardId);
 
-    if (room.decks.has(cardSourceType) && room.decks.get(cardSourceType).length > 0) {
-      const nextCard = room.decks.get(cardSourceType).shift();
-      room.cardsOnBoard.get(cardSourceType).push(nextCard);
+    if (cardIndex !== -1) {
+      // Replace purchased card with new card from deck
+      if (room.decks.has(cardSourceType) && room.decks.get(cardSourceType).length > 0) {
+        const nextCard = room.decks.get(cardSourceType).shift();
+        boardCards[cardIndex] = nextCard;
+      } else {
+        // No more cards in deck, just remove the card
+        boardCards.splice(cardIndex, 1);
+      }
+
+      room.cardsOnBoard.set(cardSourceType, boardCards);
     }
-  } else {
-    player.reservedCards = player.reservedCards.filter(c => c.id !== cardId);
+  }
+
+  // 🏛️ Check for noble eligibility
+  const noblesOnBoard = room.cardsOnBoard.get('noble') || [];
+  const eligibleNobles = getEligibleNobles(player, noblesOnBoard);
+
+  // Only allow claiming one noble per turn
+  // if (eligibleNobles.length > 0) {
+  //   const noble = eligibleNobles[0]; // Pick the first eligible noble
+
+  //   player.cards.push(noble); // Add noble to player's cards
+  //   player.score += noble.score || 0;
+
+  //   // Remove the noble from the board
+  //   const updatedNobles = noblesOnBoard.filter(n => n.id !== noble.id);
+  //   room.cardsOnBoard.set('noble', updatedNobles);
+
+  //   room.turnLog.push({
+  //     player: player.username,
+  //     action: 'claim_noble',
+  //     details: { nobleId: noble.id },
+  //     timestamp: new Date(),
+  //   });
+
+  //   console.log(`🏛️ Player ${player.username} has claimed noble ${noble.id}`);
+
+  //   // Send visual feedback to frontend
+  //   io.in(room._id).emit('noble_claimed', {
+  //     playerId: player.socketId,
+  //     noble
+  //   });
+  // }
+
+  // Multiple Nobles
+  if (eligibleNobles.length === 1) {
+    const noble = eligibleNobles[0];
+
+    player.cards.push(noble);
+    player.score += noble.score || 0;
+
+    const updatedNobles = noblesOnBoard.filter(n => n.id !== noble.id);
+    room.cardsOnBoard.set('noble', updatedNobles);
+
+    room.turnLog.push({
+      player: player.username,
+      action: 'claim_noble',
+      details: { nobleId: noble.id },
+      timestamp: new Date(),
+    });
+
+    io.in(room._id).emit('noble_claimed', {
+      playerId: player.socketId,
+      noble
+    });
+
+  } else if (eligibleNobles.length > 1) {
+    // Let frontend show manual selection modal
+    io.to(player.socketId).emit("prompt_noble_selection", {
+      nobles: eligibleNobles,
+    });
+
+    await releaseLock(room);
+    return false; // Stop further processing until noble is selected
+  }
+
+
+  // 🏆 Check for win after the purchase
+  if (checkWinCondition(player)) {
+    room.winner = player.username;
+    room.gameOver = true;
+
+    await room.save();
+
+    io.in(room._id).emit("game_over", {
+      winner: player.username,
+      finalScore: player.score,
+    });
+
+    console.log(`Player ${player.username} has won the game!`);
   }
 
   // Log purchase
@@ -292,15 +443,37 @@ async function purchaseCard(io, room, socketId, cardId, confirmWildUse = false) 
     timestamp: new Date(),
   });
 
+  console.log("Deck:", room.decks.get(cardSourceType).map(c => c.id));
+  console.log("Board:", room.cardsOnBoard.get(cardSourceType).map(c => c.id));
+
   await room.save();
   await releaseLock(room);
+
+  // ✅ emit updated game state to all players in the room
+  emitGameState(io, room);
+
   return true;
 }
 
 // Reserve a card action
-async function reserveCard(io, room, socketId, { cardId, deckType }) {
-  const player = room.players.find(p => p.socketId === socketId);
-  if (!player) return false;
+async function reserveCard(io, roomId, socketId, cardId) {
+  // Fetch the room object from the database
+  const room = await Room.findById(roomId);
+
+  if (!room) {
+    io.to(socketId).emit('error_message', 'Room not found.');
+    return false;
+  }
+
+  // Defensive: make sure players array exists
+  const players = room.players || [];
+
+  // Find the player by socketId
+  const player = players.find(p => p.socketId === socketId);
+  if (!player) {
+    io.to(socketId).emit('error_message', 'Player not found in room.');
+    return false;
+  }
 
   if (!isPlayersTurn(room, socketId)) {
     io.to(socketId).emit('error_message', 'It is not your turn.');
@@ -337,6 +510,8 @@ async function reserveCard(io, room, socketId, { cardId, deckType }) {
     return false;
   }
 
+  console.log("Reserving card cost", cardToReserve.cost);
+
   player.reservedCards.push(cardToReserve);
 
   // Give wild gem if available
@@ -369,18 +544,41 @@ async function reserveCard(io, room, socketId, { cardId, deckType }) {
   });
 
   await room.save();
+
+  // ✅ emit updated game state to all players in the room
+  emitGameState(io, room);
+
   return true;
 }
 
 // Skip turn action
-async function skipTurn(io, room, socketId) {
-  const player = room.players.find(p => p.socketId === socketId);
-  if (!player) return false;
+async function skipTurn(io, roomId, socketId) {
 
+  // Fetch the room object from the database
+  const room = await Room.findById(roomId);
+
+  if (!room) {
+    io.to(socketId).emit('error_message', 'Room not found.');
+    return false;
+  }
+
+  // Defensive: make sure players array exists
+  const players = room.players || [];
+  
+  // Find the player by socketId
+  const player = players.find(p => p.socketId === socketId);
+  if (!player) {
+    io.to(socketId).emit('error_message', 'Player not found in room.');
+    return false;
+  }
+
+  // Check if it's the player's turn
   if (!isPlayersTurn(room, socketId)) {
     io.to(socketId).emit('error_message', 'It is not your turn.');
     return false;
   }
+
+  console.log(`Player ${player.username} is skipping their turn.`);
 
   room.turnLog.push({
     player: player.username,
@@ -388,8 +586,12 @@ async function skipTurn(io, room, socketId) {
     details: {},
     timestamp: new Date(),
   });
-
+  
   await room.save();
+
+  // ✅ emit updated game state to all players in the room
+  emitGameState(io, room);
+
   return true;
 }
 
@@ -411,14 +613,14 @@ function emitGameState(io, room) {
     playerOrder: room.playerOrder,
   };
 
-  console.log(`Emitting game state to room ${room._id}`, gameState);
+  // console.log(`Emitting game state to room ${room._id}`, gameState);
 
   io.in(room._id).emit('update_game_state', gameState);
 }
 
 // Socket.io connection
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  // console.log(`User connected: ${socket.id}`);
 
   // Create Room
   socket.on('create_room', async (callback) => {
@@ -446,7 +648,7 @@ io.on('connection', (socket) => {
 
       emitGameState(io, newRoom);
 
-      console.log(`Room created: ${roomId}, host: ${socket.id}`);
+      // console.log(`Room created: ${roomId}, host: ${socket.id}`);
       callback(roomId);
     } catch (error) {
       console.error('Error creating room:', error);
@@ -558,7 +760,7 @@ io.on('connection', (socket) => {
       io.in(roomId).emit('update_current_player', room.currentPlayerId);
       emitGameState(io, room);
 
-      console.log(`User ${username} (${socket.id}) joined/reconnected to room ${roomId}`);
+      // console.log(`User ${username} (${socket.id}) joined/reconnected to room ${roomId}`);
     } catch (error) {
       console.error('Error joining room:', error);
       socket.emit('error_message', 'Failed to join room');
@@ -606,10 +808,10 @@ io.on('connection', (socket) => {
         // Delete room if host leaves
         await Room.findByIdAndDelete(roomId);
 
-        console.log(`Emitting room_closed for room ${roomId}`);
+        // console.log(`Emitting room_closed for room ${roomId}`);
         io.in(roomId).emit('receive_message', `System: Host ${username} left. Room is closed.`);
         io.in(roomId).emit('room_closed');
-        console.log(`Room ${roomId} deleted because host left.`);
+        // console.log(`Room ${roomId} deleted because host left.`);
       } else {
         // Update currentPlayerId if needed
         if (room.currentPlayerId === socket.id) {
@@ -630,7 +832,7 @@ io.on('connection', (socket) => {
       socket.leave(roomId);
       socketToRoom.delete(socket.id);
 
-      console.log(`User ${username} (${socket.id}) left room ${roomId}`);
+      // console.log(`User ${username} (${socket.id}) left room ${roomId}`);
     } catch (error) {
       console.error('Error leaving room:', error);
     }
@@ -685,11 +887,58 @@ io.on('connection', (socket) => {
       // Let clients know to transition screens
       io.in(room._id).emit('start_game');
 
-      console.log(`Game started in room ${roomId}`);
+      // console.log(`Game started in room ${roomId}`);
     } catch (error) {
       console.error('Error starting game:', error);
     }
   });
+
+  socket.on("confirm_noble_selection", async ({ roomId, nobleId }) => {
+    const room = await Room.findById(roomId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+
+    const noblesOnBoard = room.cardsOnBoard.get("noble") || [];
+    const noble = noblesOnBoard.find(n => n.id === nobleId);
+
+    if (!noble) {
+      io.to(socket.id).emit("error_message", "Selected noble not found.");
+      return;
+    }
+
+    const eligible = getEligibleNobles(player, noblesOnBoard).some(n => n.id === nobleId);
+    if (!eligible) {
+      io.to(socket.id).emit("error_message", "You are not eligible for this noble.");
+      return;
+    }
+
+    player.cards.push(noble);
+    player.score += noble.score || 0;
+
+    const updatedNobles = noblesOnBoard.filter(n => n.id !== noble.id);
+    room.cardsOnBoard.set('noble', updatedNobles);
+
+    room.turnLog.push({
+      player: player.username,
+      action: 'claim_noble',
+      details: { nobleId: noble.id },
+      timestamp: new Date(),
+    });
+
+    io.in(room._id).emit('noble_claimed', {
+      playerId: player.socketId,
+      noble
+    });
+
+    await room.save();
+    
+    emitGameState(io, room);
+
+    await advanceTurn(room); // ✅ Add this so the turn progresses properly
+  });
+
 
   // Handle player actions (collect gems, purchase, skip turn)
   socket.on('player_action', async ({ roomId, action, payload }) => {
@@ -710,32 +959,58 @@ io.on('connection', (socket) => {
 
       switch (action) {
         case 'collect_gems':
-          actionSucceeded = await collectGems(room, socketId, payload.selectedGems);
+          actionSucceeded = await collectGems(io, room, socketId, payload.selectedGems);
           break;
 
         case 'purchase_card':
-          actionSucceeded = await purchaseCard(room, socketId, payload.cardId);
+          const confirmWildUse = payload.confirmWildUse || false;
+          actionSucceeded = await purchaseCard(io, room, socketId, payload.cardId, confirmWildUse);
           break;
 
         case 'reserve_card':
-          actionSucceeded = await reserveCard(room, socketId, payload);
+          actionSucceeded = await reserveCard(io, room, socketId, payload.cardId);
           break;
 
         case 'skip_turn':
-          actionSucceeded = await skipTurn(room, socketId);
+          actionSucceeded = await skipTurn(io, room, socketId);
+          console.log("Received skip_turn action from", socketId);
           break;
 
         default:
-          socket.emit('error_message', 'Invalid action.');
+          socket.emit('player_action_result', {
+            action,
+            success: false,
+            message: 'Invalid action.',
+          });
           return;
       }
 
+      console.log('Action:', action, 'Succeeded:', actionSucceeded);
+
+
+      // Emit result back to the player who performed the action
+      socket.emit('player_action_result', {
+        action,
+        success: actionSucceeded,
+        message: actionSucceeded ? null : 'Action failed.',
+      });
+
       if (actionSucceeded) {
-        await room.save();
-        emitGameState(io, room);
 
         await advanceTurn(room);
-        io.in(roomId).emit('update_current_player', room.currentPlayerId);
+        
+        // Reload the updated room after action completes
+        const updatedRoom = await Room.findById(roomId);
+
+        emitGameState(io, updatedRoom);
+
+        io.in(roomId).emit('update_current_player', updatedRoom.currentPlayerId);
+      }
+
+      if (room.gameOver) {
+        io.to(socketId).emit("error_message", "Game is over.");
+
+        return false;
       }
 
     } catch (error) {
@@ -799,64 +1074,6 @@ io.on('connection', (socket) => {
     io.to(room).emit('receive_message', messageData);
   });
 
-  // Handle disconnect (clean up player)
-  // socket.on('disconnect', async () => {
-  //   console.log(`User disconnected: ${socket.id}`);
-
-  //   const roomId = socketToRoom.get(socket.id);
-  //   if (!roomId) return;
-
-  //   try {
-  //     const room = await Room.findById(roomId);
-  //     if (!room) return;
-
-  //     // Find the disconnecting player
-  //     const player = room.players.find(p => p.socketId === socket.id);
-  //     const username = player ? player.username : 'Unknown';
-
-  //     // Remove player from players array
-  //     room.players = room.players.filter(p => p.socketId !== socket.id);
-
-  //     // Remove from playerOrder array
-  //     if (Array.isArray(room.playerOrder)) {
-  //       room.playerOrder = room.playerOrder.filter(id => id !== socket.id);
-  //     }
-
-  //     // Check if host disconnected
-  //     const isHost = socket.id === room.host;
-
-  //     if (isHost) {
-  //       // Delete the whole room if host disconnected
-  //       await Room.findByIdAndDelete(roomId);
-
-  //       console.log(`Emitting room_closed for room ${roomId}`);
-  //       io.in(roomId).emit('receive_message', `System: Host ${username} disconnected. Room is closed.`);
-  //       io.in(roomId).emit('room_closed');
-  //       console.log(`Room ${roomId} deleted because host disconnected.`);
-  //     } else {
-  //       // Update currentPlayerId if needed
-  //       if (room.currentPlayerId === socket.id) {
-  //         room.currentPlayerId = room.playerOrder.length > 0 ? room.playerOrder[0] : null;
-  //       }
-
-  //       await room.save();
-
-  //       // Emit updated player list and current player
-  //       const usernames = room.players.map(p => p.username);
-  //       io.in(roomId).emit('update_players', usernames);
-  //       io.in(roomId).emit('update_current_player', room.currentPlayerId);
-
-  //       // Notify others that player left
-  //       io.in(roomId).emit('receive_message', `${username} has disconnected.`);
-  //     }
-
-  //     socket.leave(roomId);
-  //     socketToRoom.delete(socket.id);
-  //   } catch (error) {
-  //     console.error('Error handling disconnect:', error);
-  //   }
-  // });
-
   socket.on('reconnect_player', async ({ roomId, username }) => {
     try {
       const room = await Room.findById(roomId);
@@ -887,7 +1104,7 @@ io.on('connection', (socket) => {
       // Optionally send success message to this client
       socket.emit('reconnect_success');
 
-      console.log(`Player ${username} reconnected with new socket ID ${socket.id}`);
+      // console.log(`Player ${username} reconnected with new socket ID ${socket.id}`);
     } catch (error) {
       console.error('Error on reconnect_player:', error);
       socket.emit('error_message', 'Internal server error during reconnect');
@@ -923,7 +1140,7 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('room_closed');
 
         await Room.findByIdAndDelete(roomId);
-        console.log(`Room ${roomId} deleted because host disconnected.`);
+        // console.log(`Room ${roomId} deleted because host disconnected.`);
         return;
       }
 
@@ -936,7 +1153,7 @@ io.on('connection', (socket) => {
           p => p.username === username && p.socketId !== socketId
         );
         if (!stillMissing) {
-          console.log(`${username} has reconnected, skipping removal`);
+          // console.log(`${username} has reconnected, skipping removal`);
           return;
         }
 
@@ -960,7 +1177,7 @@ io.on('connection', (socket) => {
         });
 
         socketToRoom.delete(socketId);
-        console.log(`User ${username} (${socketId}) removed from room ${roomId} after timeout`);
+        // console.log(`User ${username} (${socketId}) removed from room ${roomId} after timeout`);
       }, 10000);
     } catch (error) {
       console.error('Error in delayed disconnect:', error);
@@ -992,8 +1209,8 @@ const startServer = async () => {
       console.log(`Server running on port ${process.env.HTTP_PORT}`);
     });
 
-    // await Room.deleteMany({});
-    // console.log('All rooms cleared from database');
+    await Room.deleteMany({});
+    console.log('All rooms cleared from database');
 
   } catch (error) {
     console.error("Failed to start server:", error);

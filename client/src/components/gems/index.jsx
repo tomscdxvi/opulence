@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import GemButton from "./gemButton";
 import gemImages from "../gems/gems";
 import { socket } from "../../util/socket";
 
-export default function Gems({ gemBank, currentPlayer, roomId, playerId, currentPlayerId }) {
+export default function Gems({ gemBank, currentPlayer, roomId, playerId, currentPlayerId, onClick }) {
   const [selectedGems, setSelectedGems] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!currentPlayer || !gemBank) return null;
 
@@ -12,6 +13,25 @@ export default function Gems({ gemBank, currentPlayer, roomId, playerId, current
   const gemTypes = ["white", "black", "green", "orange", "purple"];
 
   const isTurn = playerId === currentPlayerId;
+
+  useEffect(() => {
+    // Listen for success or error response from server for player_action
+    function onPlayerActionResult(data) {
+      if (data.action === 'collect_gems') {
+        setIsSubmitting(false);
+        if (!data.success) {
+          alert(data.message || "Failed to collect gems.");
+        }
+      }
+    }
+
+    socket.on("player_action_result", onPlayerActionResult);
+
+    // Clean up listener on unmount
+    return () => {
+      socket.off("player_action_result", onPlayerActionResult);
+    };
+  }, []);
 
   const handleGemClick = (gem) => {
     const bankAmount = gemBank[gem] || 0;
@@ -61,9 +81,11 @@ export default function Gems({ gemBank, currentPlayer, roomId, playerId, current
       return;
     }
 
+    setIsSubmitting(true);
+
     socket.emit("player_action", {
-      action: "collect_gems",
       roomId,
+      action: "collect_gems",
       payload: {
         selectedGems,
       },
@@ -104,6 +126,7 @@ export default function Gems({ gemBank, currentPlayer, roomId, playerId, current
           imageSrc={gemImages[gem]}
           selected={!!selectedGems[gem]}
           selectedCount={selectedGems[gem] || 0}
+          onClick={onClick}
           disabled={
             !isTurn ||
             currentPlayer.mustReturnGems ||
@@ -116,6 +139,7 @@ export default function Gems({ gemBank, currentPlayer, roomId, playerId, current
       {isTurn && totalSelected > 0 && (
         <button
           onClick={handleConfirm}
+          disabled={isSubmitting}
           style={{
             width: 100,
             marginTop: "24px",
@@ -129,7 +153,7 @@ export default function Gems({ gemBank, currentPlayer, roomId, playerId, current
             alignSelf: "center", // center confirm button horizontally
           }}
         >
-          Confirm Gems
+          {isSubmitting ? "Submitting..." : "Confirm Gems"}
         </button>
       )}
     </div>

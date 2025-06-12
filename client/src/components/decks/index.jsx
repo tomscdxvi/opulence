@@ -3,18 +3,12 @@
 import React from "react";
 import CardComponent from "../cards";
 
-export default function CardDeck({ deckType, cards, deckCount, onCardClick, onReserveClick }) {
+export default function CardDeck({ deckType, cards, deckCount, onCardClick, onReserveClick, reservedCount, isMyTurn }) {
+  const canReserve = isMyTurn && reservedCount < 3 && deckType !== "noble";
+
   return (
     <div>
-      {/* Title
-      <h3 style={{ textTransform: "capitalize", marginBottom: 8 }}>
-        {deckType} Deck
-      </h3>
-      */}
-
-      {/* Flex container for deck count and cards */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px", overflowX: "auto" }}>
-        
         {/* Deck count card-like box */}
         <div
           style={{
@@ -38,35 +32,44 @@ export default function CardDeck({ deckType, cards, deckCount, onCardClick, onRe
           <div style={{ fontSize: 12, marginTop: 4 }}>Cards left</div>
         </div>
 
-        {/* Cards row */}
+        {/* Cards */}
         <div style={{ display: "flex", gap: "8px" }}>
           {cards.length === 0 && <div>No cards available</div>}
-          {cards.map((card, index) => (
-            <div key={card.id || index} style={{ position: 'relative' }}>
+          {cards.slice(0, 4).map((card, index) => (
+            <div key={card.id || index} style={{ position: "relative" }}>
               <CardComponent
                 deckType={deckType}
-                score={card.points}
+                score={card.score}
                 gemType={card.gemType}
                 cost={card.cost || {}}
                 onClick={() => onCardClick(deckType, index)}
               />
-              <button
-                style={{
-                  position: 'absolute',
-                  bottom: '5px',
-                  right: '5px',
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  zIndex: 10,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReserveClick(deckType, index);
-                }}
-              >
-                Reserve
-              </button>
+              {canReserve && (
+                <button
+                  style={{
+                    position: "absolute",
+                    bottom: "10px",
+                    right: "24px",
+                    padding: "4px 8px",
+                    fontSize: "12px",
+                    backgroundColor: "#2196f3",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    zIndex: 10,
+                    transition: "background-color 0.2s ease-in-out",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReserveClick(deckType, index);
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#1976d2"}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#2196f3"}
+                >
+                  Reserve
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -74,5 +77,6 @@ export default function CardDeck({ deckType, cards, deckCount, onCardClick, onRe
     </div>
   );
 }
+
 
 
