@@ -933,7 +933,7 @@ io.on('connection', (socket) => {
     });
 
     await room.save();
-    
+
     emitGameState(io, room);
 
     await advanceTurn(room); // ✅ Add this so the turn progresses properly
@@ -1209,8 +1209,8 @@ const startServer = async () => {
       console.log(`Server running on port ${process.env.HTTP_PORT}`);
     });
 
-    await Room.deleteMany({});
-    console.log('All rooms cleared from database');
+    // await Room.deleteMany({});
+    // console.log('All rooms cleared from database');
 
   } catch (error) {
     console.error("Failed to start server:", error);
