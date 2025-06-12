@@ -221,6 +221,12 @@ export default function WaitingRoom() {
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Your name"
           style={{ padding: '8px', fontSize: '16px' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleNameSubmit();
+            }
+          }}
         />
         <button onClick={handleNameSubmit} style={{ marginLeft: '10px' }}>
           Join
@@ -299,8 +305,10 @@ export default function WaitingRoom() {
             </ul>
           </div>
 
+        <div>
           <div
             style={{
+              maxWidth: '600px',
               maxHeight: '200px',
               overflowY: 'auto',
               border: '1px solid #e0e0e0',
@@ -310,6 +318,7 @@ export default function WaitingRoom() {
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
               fontFamily: 'sans-serif',
               fontSize: '14px',
+              overflowWrap: 'break-word'
             }}
           >
             {messages.map((msg, i) => (
@@ -323,7 +332,7 @@ export default function WaitingRoom() {
                   borderRadius: '6px',
                   transition: 'background-color 0.2s ease',
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   gap: '8px',
                 }}
                 onMouseEnter={(e) => {
@@ -336,7 +345,7 @@ export default function WaitingRoom() {
                 <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
                   [{new Date().toLocaleTimeString()}]
                 </span>
-                <span><strong>{msg.sender}:</strong> {msg.text}</span>
+                <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1 }}><strong>{msg.sender}:</strong> {msg.text}</span>
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -463,6 +472,22 @@ export default function WaitingRoom() {
             </div>
           )}
         </div>
+        </div>
+        
+        {/* 
+        <div style={{ maxWidth: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginLeft: '24px' }}>
+          <div>
+            <h2>Game Rules</h2>
+            <div>
+              <h4>Actions</h4>
+              <ul>
+                <li>Collect gems (3 different or 2 of the same)</li>
+                <li>Purchase gem cards (Check if you have enough gems to purchase)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        */}
       </div>
     </>
   );

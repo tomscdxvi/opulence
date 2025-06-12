@@ -1,4 +1,5 @@
 import React from "react";
+import CardComponent from "../cards";
 
 import BGem from '../../assets/gems/black-gem.png';
 import GGem from '../../assets/gems/green-gem.png';
@@ -18,21 +19,17 @@ export default function PurchasedCards({ cards }) {
   if (!cards || cards.length === 0) return <div>No cards purchased yet.</div>;
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", padding: "8px" }}>
-      {cards.map((card) => (
-        <div key={card.id} style={{ border: "1px solid #ccc", padding: "6px", borderRadius: "8px", width: "100px", textAlign: "center", background: "#fff" }}>
-          <div style={{ fontWeight: "bold" }}>{card.id}</div>
-          <div style={{ fontWeight: "bold" }}>{card.score} Points</div>
-          {card.gemType && (
-            <img
-              src={gemImages[card.gemType]}
-              alt={card.gemType}
-              width={24}
-              style={{ marginTop: "4px" }}
+    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+        {cards.map((card) => (
+            <CardComponent
+              key={card.id}
+              score={card.score ?? 0}
+              gemType={card.gemType}
+              cost={{}} // dummy cost to not show it
+              onClick={() => onCardClick?.(card.id)}
+              variant="purchased" // optional: use this if you want different styles
             />
-          )}
-        </div>
-      ))}
+        ))}
     </div>
   );
 }

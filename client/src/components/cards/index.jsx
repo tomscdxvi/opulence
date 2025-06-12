@@ -50,7 +50,7 @@ const gemBackgrounds = {
     white: [White1],
 };
 
-export default function CardComponent({ deckType, score, gemType, cost, onClick, disabled = false }) {
+export default function CardComponent({ deckType, score, gemType, cost, onClick, variant, disabled = false }) {
     const backgroundImage = useMemo(() => {
         const images = gemBackgrounds[gemType] || [];
         if (images.length === 0) return null;
@@ -58,12 +58,15 @@ export default function CardComponent({ deckType, score, gemType, cost, onClick,
         return images[randomIndex];
     }, [gemType]);
 
+    const isPurchased = variant === "purchased";
+    const isReserved = variant === "reserved";
+
   return (
     <div
       onClick={!disabled ? onClick : undefined}
       style={{
-        width: '200px',
-        height: '150px',
+        width: isReserved || isPurchased ? '160px' : '200px',
+        height: isReserved || isPurchased ? '130px' : '150px',
         border: `2px solid black`, // always black border
         borderRadius: '8px',
         marginRight: '12px',

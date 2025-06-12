@@ -16,7 +16,7 @@ import TurnBell from '../../assets/sounds/turn.wav';
 
 // TODO: Cards are showing all gems even though it should show the card.cost gems only
 
-function CurrentPlayerPanel({ player, isMyTurn, onClick }) {
+function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
   const [expanded, setExpanded] = useState(false);
   const [hover, setHover] = React.useState(false);
 
@@ -114,7 +114,11 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick }) {
           <PurchasedCards cards={player.cards} />
 
           <h4 style={{ marginBottom: 8, marginTop: 16 }}>Your Reserved Cards</h4>
-          <ReservedCards cards={player.reservedCards} />
+          <ReservedCards 
+            cards={player.reservedCards}   
+            onCardClick={(cardId) => {
+              if (isMyTurn) onCardClick(cardId);
+            }} />
         </div>
       )}
     </div>
@@ -542,7 +546,7 @@ export default function PlayBoard({ gameState, playerId }) {
         toggleOpen={() => setShowAllPlayers((prev) => !prev)}
       />
 
-      <CurrentPlayerPanel player={currentPlayer} isMyTurn={isMyTurn} onClick={handleSkipTurn} />
+      <CurrentPlayerPanel player={currentPlayer} isMyTurn={isMyTurn} onClick={handleSkipTurn} onCardClick={handlePurchaseCard} />
 
       
       {gameOverData && (

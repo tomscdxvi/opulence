@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { socket } from '../../util/socket'; // We'll set up a shared socket export
 
 export default function Lobby() {
-  const [room, setRoom] = useState('');
   const navigate = useNavigate();
+  const [room, setRoom] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const joinRoom = (e) => {
     e.preventDefault();
@@ -19,7 +20,7 @@ export default function Lobby() {
         sessionStorage.setItem('roomId', trimmedRoom);
         navigate(`/room/${trimmedRoom}/waiting`);
       } else {
-        alert("Room does not exist.");
+        setErrorMessage("Room does not exist.");
       }
     });
   };
@@ -49,13 +50,22 @@ export default function Lobby() {
             type="text"
             placeholder="Enter Room Code"
             value={room}
-            onChange={(e) => setRoom(e.target.value)}
+            onChange={(e) => {
+              setRoom(e.target.value);
+              if (errorMessage) setErrorMessage('');
+            }}
             style={{ padding: '8px', fontSize: '16px' }}
           />
           <button onClick={joinRoom} style={{ marginLeft: '10px' }}>
             Join Room
           </button>
         </div>
+        
+        {errorMessage && (
+          <div style={{ color: 'red', marginTop: '8px', textAlign: 'center' }}>
+            {errorMessage}
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center ', marginTop: '24px' }}>
           <button onClick={createRoom}>Create Room</button>

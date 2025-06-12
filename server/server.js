@@ -354,6 +354,8 @@ async function purchaseCard(io, roomId, socketId, cardId, confirmWildUse = false
 
       room.cardsOnBoard.set(cardSourceType, boardCards);
     }
+  } else {
+    player.reservedCards = player.reservedCards.filter(card => card.id !== cardId);
   }
 
   // 🏛️ Check for noble eligibility
@@ -443,8 +445,7 @@ async function purchaseCard(io, roomId, socketId, cardId, confirmWildUse = false
     timestamp: new Date(),
   });
 
-  console.log("Deck:", room.decks.get(cardSourceType).map(c => c.id));
-  console.log("Board:", room.cardsOnBoard.get(cardSourceType).map(c => c.id));
+  room.markModified('players');
 
   await room.save();
   await releaseLock(room);
@@ -523,13 +524,20 @@ async function reserveCard(io, roomId, socketId, cardId) {
   // Remove from board and refill if from board
   if (source.from === 'board') {
     const boardCards = room.cardsOnBoard.get(source.type);
-    room.cardsOnBoard.set(source.type, boardCards.filter(c => c.id !== cardToReserve.id));
+    const index = boardCards.findIndex(c => c.id === cardToReserve.id);
 
-    if (room.decks.has(source.type) && room.decks.get(source.type).length > 0) {
-      const nextCard = room.decks.get(source.type).shift();
-      room.cardsOnBoard.get(source.type).push(nextCard);
+    if (index !== -1) {
+      boardCards.splice(index, 1); // Remove reserved card
+
+      if (room.decks.has(source.type) && room.decks.get(source.type).length > 0) {
+        const nextCard = room.decks.get(source.type).shift();
+        boardCards.splice(index, 0, nextCard); // Replace at same index
+      }
     }
+
+    room.cardsOnBoard.set(source.type, boardCards);
   }
+
 
   // Log reserve
   room.turnLog.push({
@@ -542,6 +550,8 @@ async function reserveCard(io, roomId, socketId, cardId) {
     },
     timestamp: new Date(),
   });
+
+  room.markModified('players');
 
   await room.save();
 
