@@ -334,6 +334,7 @@ export default function WaitingRoom() {
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '8px',
+                  color: '#000',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f0f0f0';
@@ -345,7 +346,7 @@ export default function WaitingRoom() {
                 <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
                   [{new Date().toLocaleTimeString()}]
                 </span>
-                <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1 }}><strong>{msg.sender}:</strong> {msg.text}</span>
+                <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1, color: '#000' }}><strong>{msg.sender}:</strong> {msg.text}</span>
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -382,6 +383,7 @@ export default function WaitingRoom() {
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                 outline: 'none',
                 transition: 'border 0.2s ease',
+                color: '#000',
               }}
             />
             <button
@@ -473,21 +475,6 @@ export default function WaitingRoom() {
           )}
         </div>
         </div>
-        
-        {/* 
-        <div style={{ maxWidth: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginLeft: '24px' }}>
-          <div>
-            <h2>Game Rules</h2>
-            <div>
-              <h4>Actions</h4>
-              <ul>
-                <li>Collect gems (3 different or 2 of the same)</li>
-                <li>Purchase gem cards (Check if you have enough gems to purchase)</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        */}
       </div>
     </>
   );
