@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { socket } from '../../util/socket';
 import { motion } from 'framer-motion';
 
+import useWindowSize from '../../util/useWindowSize';
 import backgroundImage from '../../assets/pages/background.jpg';
 import backgroundImage2 from '../../assets/pages/background-2.jpg';
 
@@ -10,6 +11,10 @@ export default function Lobby() {
   const navigate = useNavigate();
   const [room, setRoom] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  const { width } = useWindowSize(); // assume this gives px value
+
+  const isLaptop = width >= 1024;
 
   const joinRoom = (e) => {
     e.preventDefault();
@@ -33,10 +38,51 @@ export default function Lobby() {
     });
   };
 
+  
+  if (!isLaptop) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundImage: 'linear-gradient(to top right, #f9fafb, #e5e7eb, #d1d5db)',
+        }}
+      >
+        {/* Background image */}
+        <img
+          src={backgroundImage}
+          alt="Background"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: 0.5, // softer so it doesn’t fight the gradient
+            zIndex: 0,
+            pointerEvents: 'none',
+            mixBlendMode: 'luminosity', // optional, gives a soft ink-wash feel
+          }}
+        />
+
+        <p style={{ fontSize: "1.25rem", maxWidth: "500px", color: '#2C3A47', zIndex: 2 }}>
+          This game is currently optimized for laptop/desktop screens only.
+          Please use a device with a larger screen (1024px or wider).
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
 
-          {/* Scoped style to affect placeholder color */}
+      {/* Scoped style to affect placeholder color */}
       <style>
         {`
           input::placeholder {

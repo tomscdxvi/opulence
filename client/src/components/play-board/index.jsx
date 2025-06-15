@@ -47,6 +47,7 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
         transition: "height 0.3s ease",
         cursor: "pointer",
         color: '#2C3A47',
+        zIndex: 999
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -127,8 +128,8 @@ function AllPlayersPanel({ players, isOpen, toggleOpen }) {
       style={{
         position: "fixed",
         top: '50%',
-        right: isOpen ? 0 : -300,
-        width: 300,
+        right: isOpen ? 0 : -250,
+        width: 250,
         height: "50%",
         backgroundColor: "#ffffff",
         boxShadow: "0 0 10px rgba(0,0,0,0.2)",
@@ -250,6 +251,60 @@ export default function PlayBoard({ gameState, playerId }) {
 
   const { roomId } = useParams();
 
+  const { width, isMobile, isTablet, isLaptop } = useWindowSize();
+
+  const isSmallScreen = isMobile || isTablet;
+
+  const mainContainerStyle = {
+    width: "85vw",               // slightly smaller than 90vw
+    maxWidth: "1300px",          // better fit for typical laptops
+    height: isSmallScreen ? "auto" : "80vh",   // reduce from 90vh
+    maxHeight: isSmallScreen ? "none" : "800px", // reduce from 800px
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.2)",
+    padding: isSmallScreen ? "0" : "24px",             // reduce padding from 24px
+    marginTop: "24px",
+    borderRadius: "16px",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
+    color: "white",
+    position: "relative",
+    display: "flex",
+    flexDirection: isSmallScreen ? "column" : "row",
+    gap: "16px",
+    overflow: "hidden",
+    boxSizing: "border-box",
+  };
+  
+  const gameBoardStyle = {
+    display: "grid",
+    gridTemplateRows: "repeat(4, 1fr)",
+    rowGap: "12px",
+    overflow: "hidden",
+    flex: 1,
+  };
+
+  const chatBoxWrapperStyle = {
+    height: isSmallScreen ? "auto" : "80vh", // from 80vh
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-end",
+    marginTop: isSmallScreen ? "16px" : "24px",
+    marginLeft: isSmallScreen ? 0 : "2px",
+    padding: '0px 6px 0 6px',
+    zIndex: 2
+  };
+
+  const chatLogStyle = {
+    height: "400px",        // from 450px
+    maxWidth: "320px",      // from 350px
+    overflowY: "auto",
+    wordBreak: "break-all",
+    padding: "8px",         // from 12px
+    fontSize: "13px",       // from 14px
+    color: "#2C3A47",
+  };
+
   // Add a state to track if a wild gem confirmation prompt is active
   const [wildGemPrompt, setWildGemPrompt] = useState(null); // { message, cardId } or null
   const [showAllPlayers, setShowAllPlayers] = useState(false);
@@ -263,6 +318,10 @@ export default function PlayBoard({ gameState, playerId }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
+
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [selectedDeckType, setSelectedDeckType] = useState(null);
+  const [showActionModal, setShowActionModal] = useState(false);
 
   const combinedMessages = useMemo(() => {
     if (!gameState?.turnLog) return messages;
@@ -482,202 +541,107 @@ export default function PlayBoard({ gameState, playerId }) {
   console.log("decks:", deckCounts);
 
   return (
-    <>
-      <div
-        style={{
-          width: "90vw", // or use min/max-width
-          maxWidth: "1400px",
-          height: "90vh",
-          maxHeight: "800px",
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          padding: '32px',
-          marginTop: '32px',
-          borderRadius: '16px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-          color: 'white',
-          textAlign: 'center',
-          zIndex: 10,
-          overflow: "hidden",
-          boxSizing: "border-box",
-          position: "relative", // important for CurrentPlayerPanel absolute positioning
-          display: "flex",
-        }}
-      >
-      {/* Existing UI */}
-      <div style={{ display: "grid", marginRight: "24px", alignItems: "start" }}>
-        <Gems
-          gemBank={gameState.gemBank}
-          currentPlayer={currentPlayer}
-          currentPlayerId={playerId}
-          roomId={roomId}
-          playerId={playerId}
-        />
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: "repeat(4, 1fr)",
-          rowGap: "12px",
-          overflow: "hidden",
-          flex: 1,
-        }}
-      >
-        {["noble", "blue", "yellow", "green"].map((deckType) => (
-          <CardDeck
-            key={deckType}
-            deckType={deckType}
-            cards={cardsOnBoard[deckType] || []}
-            deckCount={deckCounts[deckType]}
-            isMyTurn={isMyTurn}
-            onCardClick={(deckType, index) => {
-              // Purchase the card at cardsOnBoard[deckType][index]
-              const card = cardsOnBoard[deckType][index];
-              if (card) handlePurchaseCard(card.id);
+      <>
+        <div style={mainContainerStyle}>
+          {/* Gems Panel */}
+          <div style={{ display: "grid", alignItems: "start" }}>
+            <Gems
+              gemBank={gameState.gemBank}
+              currentPlayer={currentPlayer}
+              currentPlayerId={playerId}
+              roomId={roomId}
+              playerId={playerId}
+            />
+          </div>
 
-              console.log("Cards in deck:", cardsOnBoard[deckType].map(card => card.id));
-            }}
-            onReserveClick={(deckType, index) => {
+          {/* Card Decks */}
+          <div style={gameBoardStyle}>
+            {["noble", "blue", "yellow", "green"].map((deckType) => (
+              <CardDeck
+                key={deckType}
+                deckType={deckType}
+                cards={cardsOnBoard[deckType] || []}
+                deckCount={deckCounts[deckType]}
+                isMyTurn={isMyTurn}
+                /*
+                onCardClick={(deckType, index) => {
+                  const card = cardsOnBoard[deckType][index];
+                  if (card) handlePurchaseCard(card.id);
+                }}
+                onReserveClick={(deckType, index) => {
+                  const card = cardsOnBoard[deckType][index];
+                  if (card) handleReserveCard(card.id);
+                }}
+                reservedCount={currentPlayer?.reservedCards?.length || 0}
+                */
+                 onCardClick={(deckType, index) => {
+                  if (!isMyTurn) return; // 🔒 Block interaction when it's not your turn
 
-              // Reserve the card at cardsOnBoard[deckType][index]
-              const card = cardsOnBoard[deckType][index];
-              console.log("Card cost for", card.id, card.cost);
-              if (card) handleReserveCard(card.id);
-            }}
-            reservedCount={currentPlayer?.reservedCards?.length || 0}
-          />
-        ))}
-        </div>
-      </div>
-
-      {wildGemPrompt && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: 20,
-              borderRadius: 8,
-              maxWidth: 400,
-              textAlign: "center",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
-            }}
-          >
-            <p>{wildGemPrompt.message}</p>
-            <button
-              onClick={() => handleConfirmWildUse(true)}
-              style={{
-                marginRight: 10,
-                padding: "8px 16px",
-                backgroundColor: "green",
-                color: "white",
-                border: "none",
-                borderRadius: 5,
-                cursor: "pointer",
-              }}
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => handleConfirmWildUse(false)}
-              style={{
-                padding: "8px 16px",
-                backgroundColor: "gray",
-                color: "white",
-                border: "none",
-                borderRadius: 5,
-                cursor: "pointer",
-              }}
-            >
-              No
-            </button>
+                  const card = cardsOnBoard[deckType][index];
+                  if (card) {
+                    setSelectedCard(card);
+                    setSelectedDeckType(deckType);
+                    setShowActionModal(true);
+                  }
+                }}
+              />
+            ))}
           </div>
         </div>
-      )}
 
-      {nobleChoices.length > 0 && (
-        <NobleSelectionModal
-          nobles={nobleChoices}
-          onSelect={handleNobleSelect}
-          onCancel={handleCancel}
-        />
-      )}
-
-      <button
-        onClick={() => setIsMuted((prev) => !prev)}
-        style={{
-          position: 'absolute',
-          top: 10,
-          right: 10,
-          backgroundColor: '#eee',
-          border: 'none',
-          borderRadius: '6px',
-          padding: '8px 12px',
-          cursor: 'pointer',
-        }}
-      >
-        {isMuted ? '🔇 Muted' : '🔊 Sound On'}
-      </button>
-
-      <AllPlayersPanel
-        players={playersArray}
-        isOpen={showAllPlayers}
-        toggleOpen={() => setShowAllPlayers((prev) => !prev)}
-      />
-
-      <CurrentPlayerPanel player={currentPlayer} isMyTurn={isMyTurn} onClick={handleSkipTurn} onCardClick={handlePurchaseCard} />
-      
-      <div style={{
-        height: '80vh',
-        display: 'flex', // ✅ makes it flexible
-        flexDirection: 'column', // ✅ so children stack vertically
-        justifyContent: 'flex-end', // ✅ pushes everything to the bottom
-        marginLeft: '24px',
-        marginTop: '32px',
-      }}>
-        <div
+        {/* Mute Button */}
+        <button
+          onClick={() => setIsMuted((prev) => !prev)}
           style={{
-            height: '450px',
-            maxWidth: '350px',
-            overflowY: 'auto',
-            wordBreak: 'break-all',
-            padding: '12px',
-            fontSize: '14px',
-            color: '#2C3A47'
+            position: "absolute",
+            top: 10,
+            right: 10,
+            backgroundColor: "#eee",
+            border: "none",
+            borderRadius: "6px",
+            padding: "8px 12px",
+            cursor: "pointer",
           }}
->
+        >
+          {isMuted ? "🔇 Muted" : "🔊 Sound On"}
+        </button>
+
+        {/* All Players Panel */}
+        <AllPlayersPanel
+          players={playersArray}
+          isOpen={showAllPlayers}
+          toggleOpen={() => setShowAllPlayers((prev) => !prev)}
+        />
+
+        {/* Current Player Panel */}
+        <CurrentPlayerPanel
+          player={currentPlayer}
+          isMyTurn={isMyTurn}
+          onClick={handleSkipTurn}
+          onCardClick={handlePurchaseCard}
+        />
+
+        {/* Chat + Input */}
+        <div style={chatBoxWrapperStyle}>
+          <div style={chatLogStyle}>
             {combinedMessages.map((msg, i) => (
               <div
                 key={i}
-                className="message-entry"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column', // ✅ NORMAL order
-                  justifyContent: 'flex-end', // ✅ PUSH to bottom when content is small
-                  marginBottom: '8px',
-                  padding: '12px 12px',
-                  transition: 'background-color 0.2s ease',
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '8px',
-                  gap: '8px',
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "flex-end",
+                  marginBottom: "8px",
+                  padding: "12px",
+                  backgroundColor: "rgba(255, 255, 255, 1)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  borderRadius: "8px",
+                  color: "#2C3A47"
                 }}
               >
-                <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
-                  [{new Date(msg.timestamp).toLocaleTimeString()}] 
-
-                  <span style={{ maxWidth: '100%', flex: 1, color: '#2C3A47' }}><strong> {msg.sender}:</strong> {msg.text}</span>
+                <span style={{ fontSize: "12px" }}>
+                  [{new Date(msg.timestamp).toLocaleTimeString()}]{" "}
+                  <strong>{msg.sender}:</strong> {msg.text}
                 </span>
               </div>
             ))}
@@ -686,11 +650,11 @@ export default function PlayBoard({ gameState, playerId }) {
 
           <div
             style={{
-              marginTop: '20px',
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              padding: '0 8px',
+              marginTop: "20px",
+              display: "flex",
+              gap: "8px",
+              alignItems: "center",
+              padding: "0 8px",
             }}
           >
             <input
@@ -699,54 +663,162 @@ export default function PlayBoard({ gameState, playerId }) {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type a message"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   sendMessage();
                 }
               }}
               style={{
                 flex: 1,
-                padding: '10px 12px',
-                fontSize: '14px',
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-                outline: 'none',
-                transition: 'border 0.2s ease',
-                color: '#2C3A47',
+                padding: "10px 12px",
+                fontSize: "14px",
+                backgroundColor: "rgba(255, 255, 255, 1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "8px",
+                color: "#2C3A47",
               }}
             />
             <button
               onClick={sendMessage}
               style={{
-                padding: '10px 16px',
-                backgroundColor: '#2d3436',
-                position: 'relative', // create new stacking context
-                zIndex: 1,            // higher than background image
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease',
+                padding: "10px 16px",
+                backgroundColor: "#2d3436",
+                color: "white",
+                borderRadius: "8px",
+                border: "none",
+                fontSize: "14px",
+                fontWeight: "bold",
+                cursor: "pointer",
               }}
-                  onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
-                  onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
+              onMouseEnter={(e) =>
+                (e.target.style.backgroundColor = "#636e72")
+              }
+              onMouseLeave={(e) =>
+                (e.target.style.backgroundColor = "#2d3436")
+              }
             >
               Send
             </button>
           </div>
-      </div>
+        </div>
 
-      {gameOverData && (
-        <GameOverModal
-          winner={gameOverData.winner}
-          finalScore={gameOverData.finalScore}
-        />
-      )}
-    </>
-  );
+        {/* Modals */}
+        {wildGemPrompt && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 9999,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: 20,
+                borderRadius: 8,
+                maxWidth: 400,
+                textAlign: "center",
+              }}
+            >
+              <p>{wildGemPrompt.message}</p>
+              <button onClick={() => handleConfirmWildUse(true)}>Yes</button>
+              <button onClick={() => handleConfirmWildUse(false)}>No</button>
+            </div>
+          </div>
+        )}
+
+        {nobleChoices.length > 0 && (
+          <NobleSelectionModal
+            nobles={nobleChoices}
+            onSelect={handleNobleSelect}
+            onCancel={handleCancel}
+          />
+        )}
+
+        {showActionModal && selectedCard && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 9999,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "24px",
+                borderRadius: "12px",
+                width: "300px",
+                textAlign: "center",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.3)",
+              }}
+            >
+              <h3>Choose an Action</h3>
+              <p>What would you like to do with this card?</p>
+
+              <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                <button
+                  style={{ padding: "8px", backgroundColor: "#2980b9", color: "white", border: "none", borderRadius: "6px" }}
+                  onClick={() => {
+                    handlePurchaseCard(selectedCard.id);
+                    setShowActionModal(false);
+                    setSelectedCard(null);
+                    setSelectedDeckType(null);
+                  }}
+                >
+                  Purchase
+                </button>
+
+                {selectedDeckType !== "noble" && (currentPlayer?.reservedCards?.length || 0) < 3 && (
+                  <button
+                    style={{ padding: "8px", backgroundColor: "#2c3e50", color: "white", border: "none", borderRadius: "6px" }}
+                    onClick={() => {
+                      handleReserveCard(selectedCard.id);
+                      setShowActionModal(false);
+                      setSelectedCard(null);
+                      setSelectedDeckType(null);
+                    }}
+                  >
+                    Reserve
+                  </button>
+                )}
+
+                <button
+                  style={{ padding: "8px", backgroundColor: "#bdc3c7", color: "#2c3e50", border: "none", borderRadius: "6px" }}
+                  onClick={() => {
+                    setShowActionModal(false);
+                    setSelectedCard(null);
+                    setSelectedDeckType(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {gameOverData && (
+          <GameOverModal
+            winner={gameOverData.winner}
+            finalScore={gameOverData.finalScore}
+          />
+        )}
+      </>
+    );
 }

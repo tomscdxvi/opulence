@@ -1,5 +1,7 @@
 import React from "react";
 
+import useWindowSize from "../../util/useWindowSize";
+
 export default function GemButton({
   gemName,
   gemCount,
@@ -9,14 +11,23 @@ export default function GemButton({
   selectedCount,
   disabled,
 }) {
+
+  const { isLaptop } = useWindowSize();
+
+  // Adjust sizes based on laptop breakpoint
+  const buttonSize = isLaptop ? 60 : 80;
+  const fontSize = isLaptop ? 10 : 12;
+  const selectedCountSize = isLaptop ? 16 : 20;
+
+
   return (
     <button
       onClick={onTake}
       disabled={disabled}
       style={{
         position: "relative",
-        width: 80,
-        height: 80,
+        width: buttonSize,
+        height: buttonSize,
         borderRadius: "50%",
         padding: 10,
         margin: 6,
@@ -42,7 +53,7 @@ export default function GemButton({
         }}
       />
 
-      {/* Gem Count (in bottom center) */}
+      {/* Gem Count (bottom center) */}
       <div
         style={{
           position: "absolute",
@@ -53,7 +64,7 @@ export default function GemButton({
           color: "#fff",
           padding: "2px 6px",
           borderRadius: "12px",
-          fontSize: 12,
+          fontSize: fontSize,
           fontWeight: "bold",
           boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
         }}
@@ -71,9 +82,9 @@ export default function GemButton({
             backgroundColor: "crimson",
             color: "white",
             borderRadius: "50%",
-            width: 20,
-            height: 20,
-            fontSize: 12,
+            width: selectedCountSize,
+            height: selectedCountSize,
+            fontSize: fontSize,
             fontWeight: "bold",
             display: "flex",
             alignItems: "center",

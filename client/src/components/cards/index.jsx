@@ -2,6 +2,8 @@
 
 import React, { useMemo } from 'react';
 
+import useWindowSize from '../../util/useWindowSize';
+
 import BGem from '../../assets/gems/black-gem.png';
 import GGem from '../../assets/gems/green-gem.png';
 import PGem from '../../assets/gems/purple-gem.png';
@@ -51,6 +53,9 @@ const gemBackgrounds = {
 };
 
 export default function CardComponent({ deckType, score, gemType, cost, onClick, variant, disabled = false }) {
+
+    const { isLaptop } = useWindowSize();
+
     const backgroundImage = useMemo(() => {
         const images = gemBackgrounds[gemType] || [];
         if (images.length === 0) return null;
@@ -61,12 +66,21 @@ export default function CardComponent({ deckType, score, gemType, cost, onClick,
     const isPurchased = variant === "purchased";
     const isReserved = variant === "reserved";
 
+    // Sizes based on screen size and variant
+    const cardWidth = isReserved || isPurchased ? (isLaptop ? 140 : 160) : (isLaptop ? 165 : 200);
+    const cardHeight = isReserved || isPurchased ? (isLaptop ? 110 : 130) : (isLaptop ? 100 : 150);
+
+    const gemIconSize = isLaptop ? 24 : 32;
+    const costIconSize = isLaptop ? 18 : 24;
+    const scoreFontSize = isLaptop ? 16 : 20;
+    const costFontSize = isLaptop ? 14 : 18;
+
   return (
     <div
       onClick={!disabled ? onClick : undefined}
       style={{
-        width: isReserved || isPurchased ? '160px' : '200px',
-        height: isReserved || isPurchased ? '130px' : '150px',
+        width: cardWidth,
+        height: cardHeight,
         border: `2px solid black`, // always black border
         borderRadius: '8px',
         marginRight: '12px',
@@ -95,6 +109,7 @@ export default function CardComponent({ deckType, score, gemType, cost, onClick,
       {backgroundImage && (
         <img
           src={backgroundImage}
+          alt={`${gemType} card background`}
           style={{
             position: 'absolute',
             top: 0,
@@ -104,6 +119,8 @@ export default function CardComponent({ deckType, score, gemType, cost, onClick,
             objectFit: 'cover',
             zIndex: 0,
             opacity: 0.85,
+            userSelect: 'none',
+            pointerEvents: 'none',
           }}
         />
       )}
@@ -117,24 +134,53 @@ export default function CardComponent({ deckType, score, gemType, cost, onClick,
           zIndex: 1,
           position: 'relative',
           height: '28px',
+          fontWeight: 'bold'
         }}
       >
         <div style={{ height: '28px', display: 'flex', alignItems: 'center' }}>
-          <h4 style={{ margin: 0 }}>{score > 0 ? score : '\u00A0'}</h4>
+          <h4 style={{ margin: 0, fontSize: scoreFontSize }}>{score > 0 ? score : '\u00A0'}</h4>
         </div>
         {gemImages[gemType] ? (
-          <img src={gemImages[gemType]} alt={`${gemType} gem`} style={{ width: '32px', height: '32px' }} />
+          <img
+            src={gemImages[gemType]}
+            alt={`${gemType} gem`}
+            style={{ width: gemIconSize, height: gemIconSize }}
+          />
         ) : (
-          <h5 style={{ margin: 0 }}>{gemType === "noble" ? "" : gemType}</h5>
+          <h5 style={{ margin: 0, fontSize: scoreFontSize }}>
+            {gemType === "noble" ? "" : gemType}
+          </h5>
         )}
       </div>
 
       {/* Bottom section: cost */}
-      <ul style={{ listStyleType: 'none', padding: 0, margin: 0, zIndex: 1 }}>
+      <ul
+        style={{
+          listStyleType: 'none',
+          padding: 0,
+          margin: 0,
+          zIndex: 1,
+          display: 'flex',
+          gap: isLaptop ? 6 : 8,
+          flexWrap: 'wrap',
+        }}
+      >
         {Object.entries(cost).map(([color, amount]) => (
-          <li key={color} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <li
+            key={color}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: costFontSize,
+            }}
+          >
             {gemImages[color] ? (
-              <img src={gemImages[color]} alt={`${color} gem`} style={{ width: '24px', height: '24px', marginBottom: '6px' }} />
+              <img
+                src={gemImages[color]}
+                alt={`${color} gem`}
+                style={{ width: costIconSize, height: costIconSize, marginBottom: '6px' }}
+              />
             ) : (
               <span>{color}</span>
             )}
