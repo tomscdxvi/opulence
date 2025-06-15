@@ -34,6 +34,8 @@ export default function WaitingRoom() {
   const [roomCodeVisible, setRoomCodeVisible] = useState(true);
   const [isRoomLocked, setIsRoomLocked] = useState(false);
 
+  // TODO: Input box for Type a message appears black in dark mode chrome
+
   useEffect(() => {
     socket.emit("check_room_status", { roomId }, (response) => {
       if (response?.error === "game_already_started") {
@@ -516,6 +518,8 @@ export default function WaitingRoom() {
                     fontSize: '14px',
                     borderRadius: '6px',
                     border: '1px solid #ccc',
+                    backgroundColor: '#fdfdfd',
+                    color: '#2C3A47'
                   }}
                 />
                 <button

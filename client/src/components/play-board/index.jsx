@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { socket } from "../../util/socket";
 import { useParams } from "react-router-dom";
 
+import useWindowSize from "../../util/useWindowSize";
 import PlayerHand from "../player-hand";
 import NobleDeck from "../decks/noble-deck";
 import CardDeck from "../decks";
@@ -14,6 +15,13 @@ import gemImages from "../gems/gems";
 
 import TurnBell from '../../assets/sounds/turn.wav';
 
+  // TODO: Chatbox to match playboard
+  // TODO: Messages start from bottom to up
+  // TODO: Make playboard responsive to different screensize 
+  // TODO: Gem amount in currentplayer and all users set color
+  // TODO: Currentplayer name and score set color
+  // TODO: Limit to 4 players
+
 function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
   const [expanded, setExpanded] = useState(false);
   const [hover, setHover] = React.useState(false);
@@ -22,6 +30,7 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
 
   return (
     <div
+      onClick={() => setExpanded(prev => !prev)}
       style={{
         position: "fixed", // changed from absolute to fixed
         bottom: 0,
@@ -36,6 +45,8 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
         padding: "12px 24px",
         zIndex: 10,
         transition: "height 0.3s ease",
+        cursor: "pointer",
+        color: '#2C3A47',
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -89,23 +100,6 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
             );
           })}
         </div>
-
-        {/* TOGGLE BUTTON */}
-        <div
-          onClick={() => setExpanded(prev => !prev)}
-          style={{
-            marginLeft: 16,
-            fontSize: 24,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s",
-          }}
-          title={expanded ? "Hide Details" : "Show Details"}
-        >
-          ⬆️
-        </div>
       </div>
 
       {/* EXPANDED SECTION */}
@@ -128,24 +122,29 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
 
 function AllPlayersPanel({ players, isOpen, toggleOpen }) {
   return (
-    <>
-      <div
-        style={{
-          position: "fixed",
-          top: '50%',
-          right: isOpen ? 0 : -300, // slide in/out
-          width: 300,
-          height: "50%",
-          backgroundColor: "#ffffff",
-          boxShadow: "0 0 10px rgba(0,0,0,0.2)",
-          padding: "12px",
-          overflowY: "auto",
-          transition: "right 0.3s ease-in-out",
-          transform: 'translateY(-50%)',
-          zIndex: 20,
-        }}
-      >
-        <h3 style={{ textAlign: "center" }}>All Players</h3>
+    <div
+      onClick={toggleOpen}
+      style={{
+        position: "fixed",
+        top: '50%',
+        right: isOpen ? 0 : -300,
+        width: 300,
+        height: "50%",
+        backgroundColor: "#ffffff",
+        boxShadow: "0 0 10px rgba(0,0,0,0.2)",
+        padding: "12px",
+        overflowY: "auto",
+        transition: "right 0.3s ease-in-out",
+        transform: 'translateY(-50%)',
+        zIndex: 20,
+        cursor: "pointer",
+        color: '#2C3A47',
+      }}
+    >
+      <h3 style={{ textAlign: "center", marginBottom: 12 }}>All Players</h3>
+
+      {/* Prevent player details from bubbling click */}
+      <div onClick={(e) => e.stopPropagation()}>
         {players.map((player) => (
           <div
             key={player.socketId}
@@ -182,28 +181,7 @@ function AllPlayersPanel({ players, isOpen, toggleOpen }) {
           </div>
         ))}
       </div>
-
-      {/* Toggle Arrow Button */}
-      <div
-        onClick={toggleOpen}
-        style={{
-          position: "fixed",
-          top: "50%",
-          right: isOpen ? 300 : 0, // right at the panel edge or screen edge
-          transform: "translateY(-50%)",
-          transition: "right 0.3s ease-in-out",
-          background: "#fff",
-          border: "1px solid #ccc",
-          borderRadius: "4px 0 0 4px",
-          padding: "8px 10px",
-          cursor: "pointer",
-          zIndex: 25,
-          boxShadow: "0 0 4px rgba(0,0,0,0.3)",
-        }}
-      >
-        {isOpen ? "➡️" : "⬅️"}
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -507,8 +485,10 @@ export default function PlayBoard({ gameState, playerId }) {
     <>
       <div
         style={{
-          width: "1400px",
-          height: "800px",
+          width: "90vw", // or use min/max-width
+          maxWidth: "1400px",
+          height: "90vh",
+          maxHeight: "800px",
           backgroundColor: 'rgba(255, 255, 255, 0.1)',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.2)',
