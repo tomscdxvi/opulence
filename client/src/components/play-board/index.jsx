@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { socket } from "../../util/socket";
 import { useParams } from "react-router-dom";
 
@@ -14,8 +14,6 @@ import gemImages from "../gems/gems";
 
 import TurnBell from '../../assets/sounds/turn.wav';
 
-// TODO: Cards are showing all gems even though it should show the card.cost gems only
-
 function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
   const [expanded, setExpanded] = useState(false);
   const [hover, setHover] = React.useState(false);
@@ -29,10 +27,13 @@ function CurrentPlayerPanel({ player, isMyTurn, onClick, onCardClick }) {
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: "#fff",
+        backgroundColor: 'rgba(255, 255, 255, 1)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        borderRadius: '8px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
         borderTop: "2px solid #ccc",
         padding: "12px 24px",
-        boxShadow: "0 -2px 5px rgba(0,0,0,0.1)",
         zIndex: 10,
         transition: "height 0.3s ease",
       }}
@@ -209,12 +210,57 @@ function AllPlayersPanel({ players, isOpen, toggleOpen }) {
 // Helper to convert a turnLog entry to a readable message string
 function renderLogMessage(log) {
   switch (log.action) {
-    case 'reserve_card':
-      return `${log.player} reserved a ${log.details.type} card.`;
-    case 'purchase_card':
-      return `${log.player} purchased a ${log.details.type} card.`;
-    case 'collect_gems':
-      return `${log.player} collected gems.`;
+    case 'reserve_card': {
+      const gemImg = gemImages[log.details.gemType];
+      return (
+        <>
+          <strong>{log.player}</strong> reserved <strong>{log.details.cardId}</strong>{' '}
+          Gem:{' '}
+          <img
+            src={gemImg}
+            alt={log.details.gemType}
+            width={16}
+            style={{ verticalAlign: 'middle', marginRight: 4 }}
+          />
+          | {log.details.cardScore}
+        </>
+      );
+    }
+    case 'purchase_card': {
+      const gemImg = gemImages[log.details.gemType];
+      return (
+        <>
+          <strong>{log.player}</strong> purchased <strong>{log.details.cardId}</strong>{' '}
+          {' '}
+          <img
+            src={gemImg}
+            alt={log.details.gemType}
+            width={16}
+            style={{ verticalAlign: 'middle', marginRight: 4 }}
+          />
+          | {log.details.cardScore}
+        </>
+      );
+    }
+    case 'collect_gems': {
+      const collected = Object.entries(log.details.gemsCollected || {});
+      return (
+        <>
+          <strong>{log.player}</strong> collected{' '}
+          {collected.map(([gem, count]) => (
+            <span key={gem} style={{ marginRight: 8 }}>
+              <img
+                src={gemImages[gem]}
+                alt={gem}
+                width={16}
+                style={{ verticalAlign: 'middle', marginRight: 2 }}
+              />
+              {count}
+            </span>
+          ))}
+        </>
+      );
+    }
     case 'skip_turn':
       return `${log.player} skipped their turn.`;
     default:
@@ -240,7 +286,7 @@ export default function PlayBoard({ gameState, playerId }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
 
-  const combinedMessages = React.useMemo(() => {
+  const combinedMessages = useMemo(() => {
     if (!gameState?.turnLog) return messages;
 
     // Map turn logs to message-like objects
@@ -283,7 +329,7 @@ export default function PlayBoard({ gameState, playerId }) {
       }]);
 
       // Only play the sound if the message is from someone else
-      if (sender !== username && !isMuted) {
+      if (sender !== currentPlayer.username && !isMuted) {
         playChatSound();
       }
     });
@@ -340,9 +386,11 @@ export default function PlayBoard({ gameState, playerId }) {
   
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    console.log('Scrolling into view');
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
   }, [combinedMessages]);
-
 
   if (!gameState) return <div>Loading game...</div>;
   if (!gameState.players) return <div>Waiting for players to join...</div>;
@@ -350,9 +398,27 @@ export default function PlayBoard({ gameState, playerId }) {
   // Sanity checks
   if (!currentPlayer) {
     return (
-      <div style={{ textAlign: 'center', marginTop: '100px' }}>
-        <h2>The room may be closed or expired.</h2>
-        <button onClick={() => window.location.href = '/'}>Return Home</button>
+      <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1 }}>
+        <div>
+          <h2 style={{ color: '#2C3A47' }}>The room may be closed or expired.</h2>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <button 
+              style={{               
+                backgroundColor: '#2d3436',
+                color: '#fff',
+                padding: '10px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
+              onClick={() => window.location.href = '/'
+
+            }>Return Home</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -422,7 +488,7 @@ export default function PlayBoard({ gameState, playerId }) {
   console.log('currentPlayer:', currentPlayer);
   // console.log('cardsOnBoard:', gameState.cardsOnBoard);
   console.log('gems:', gameState.gemBank);
-  console.log(currentPlayer);
+  console.log("current player username", currentPlayer.username);
   console.log("turn log:", gameState.turnLog);
 
   // console.log("Player IDs:", playersArray.map(p => p.socketId));
@@ -443,13 +509,20 @@ export default function PlayBoard({ gameState, playerId }) {
         style={{
           width: "1400px",
           height: "800px",
-          border: "2px solid black",
-          display: "flex",
-          padding: "20px",
-          boxSizing: "border-box",
-          backgroundColor: "#f5f5f5",
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          padding: '32px',
+          marginTop: '32px',
+          borderRadius: '16px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+          color: 'white',
+          textAlign: 'center',
+          zIndex: 10,
           overflow: "hidden",
+          boxSizing: "border-box",
           position: "relative", // important for CurrentPlayerPanel absolute positioning
+          display: "flex",
         }}
       >
       {/* Existing UI */}
@@ -584,49 +657,48 @@ export default function PlayBoard({ gameState, playerId }) {
 
       <CurrentPlayerPanel player={currentPlayer} isMyTurn={isMyTurn} onClick={handleSkipTurn} onCardClick={handlePurchaseCard} />
       
-
-      <div style={{ marginLeft: '24px' }}>
-          <div
-            style={{
-              maxWidth: '350px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-              border: '1px solid #e0e0e0',
-              borderRadius: '10px',
-              padding: '12px',
-              backgroundColor: '#fafafa',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-              fontFamily: 'sans-serif',
-              fontSize: '14px',
-              overflowWrap: 'break-word'
-            }}
-          >
+      <div style={{
+        height: '80vh',
+        display: 'flex', // ✅ makes it flexible
+        flexDirection: 'column', // ✅ so children stack vertically
+        justifyContent: 'flex-end', // ✅ pushes everything to the bottom
+        marginLeft: '24px',
+        marginTop: '32px',
+      }}>
+        <div
+          style={{
+            height: '450px',
+            maxWidth: '350px',
+            overflowY: 'auto',
+            wordBreak: 'break-all',
+            padding: '12px',
+            fontSize: '14px',
+            color: '#2C3A47'
+          }}
+>
             {combinedMessages.map((msg, i) => (
               <div
                 key={i}
                 className="message-entry"
                 style={{
-                  padding: '6px 8px',
-                  marginBottom: '6px',
-                  backgroundColor: '#fff',
-                  borderRadius: '6px',
-                  transition: 'background-color 0.2s ease',
                   display: 'flex',
-                  alignItems: 'flex-start',
+                  flexDirection: 'column', // ✅ NORMAL order
+                  justifyContent: 'flex-end', // ✅ PUSH to bottom when content is small
+                  marginBottom: '8px',
+                  padding: '12px 12px',
+                  transition: 'background-color 0.2s ease',
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
                   gap: '8px',
-                  color: '#000',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f0f0f0';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fff';
                 }}
               >
                 <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
-                  [{new Date(msg.timestamp).toLocaleTimeString()}]
+                  [{new Date(msg.timestamp).toLocaleTimeString()}] 
+
+                  <span style={{ maxWidth: '100%', flex: 1, color: '#2C3A47' }}><strong> {msg.sender}:</strong> {msg.text}</span>
                 </span>
-                <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1, color: '#000' }}><strong>{msg.sender}:</strong> {msg.text}</span>
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -656,13 +728,14 @@ export default function PlayBoard({ gameState, playerId }) {
                 flex: 1,
                 padding: '10px 12px',
                 fontSize: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 1)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 borderRadius: '8px',
-                border: '1px solid #ccc',
-                backgroundColor: '#fff',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
                 outline: 'none',
                 transition: 'border 0.2s ease',
-                color: '#000',
+                color: '#2C3A47',
               }}
             />
             <button
@@ -670,17 +743,18 @@ export default function PlayBoard({ gameState, playerId }) {
               style={{
                 padding: '10px 16px',
                 backgroundColor: '#2d3436',
+                position: 'relative', // create new stacking context
+                zIndex: 1,            // higher than background image
                 color: 'white',
-                border: 'none',
                 borderRadius: '8px',
+                border: 'none',
                 fontSize: '14px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                 transition: 'background-color 0.2s ease',
               }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
+                  onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
+                  onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
             >
               Send
             </button>

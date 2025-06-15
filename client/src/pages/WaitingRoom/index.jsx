@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { socket } from '../../util/socket';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { motion } from 'framer-motion';
+
+import backgroundImage from '../../assets/pages/background.jpg';
 
 import ChatPop from '../../assets/sounds/pop.wav';
 import JoinPop from '../../assets/sounds/join.wav';
@@ -39,15 +42,15 @@ export default function WaitingRoom() {
     });
   }, []);
 
-  useEffect(() => {
-    const savedName = sessionStorage.getItem('username');
-    const savedRoom = sessionStorage.getItem('roomId');
+  // useEffect(() => {
+  //   const savedName = sessionStorage.getItem('username');
+  //   const savedRoom = sessionStorage.getItem('roomId');
 
-    if (savedName && savedRoom === roomId) {
-      setUsername(savedName);
-      setNameSubmitted(true); // this will trigger the main socket logic
-    }
-  }, [roomId]);
+  //   if (savedName && savedRoom === roomId) {
+  //     setUsername(savedName);
+  //     setNameSubmitted(true); // this will trigger the main socket logic
+  //   }
+  // }, [roomId]);
 
   const playChatSound = () => {
     if (!isMutedRef.current) {
@@ -215,208 +218,332 @@ export default function WaitingRoom() {
     });
   };
 
-  if (!nameSubmitted) {
+  if(!nameSubmitted) {
     return (
-      <div style={{ textAlign: 'center', marginTop: '100px' }}>
-        <h2>Enter your name to join the room</h2>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Your name"
-          style={{ padding: '8px', fontSize: '16px' }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleNameSubmit();
-            }
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        style={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundImage: 'linear-gradient(to top right, #f9fafb, #e5e7eb, #d1d5db)',
+        }}
+      >
+        {/* Background image */}
+        <img
+          src={backgroundImage}
+          alt="Background"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: 0.5, // softer so it doesn’t fight the gradient
+            zIndex: 0,
+            pointerEvents: 'none',
+            mixBlendMode: 'luminosity', // optional, gives a soft ink-wash feel
           }}
         />
-        <button onClick={handleNameSubmit} style={{ marginLeft: '10px' }}>
-          Join
-        </button>
-      </div>
-    );
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6 }}
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '16px',
+            padding: '40px',
+            width: '100%',
+            maxWidth: '400px',
+            height: '150px',
+            zIndex: 10,
+            textAlign: 'center',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            color: '#2C3A47',
+          }}
+        >
+          <h2 style={{ fontSize: '24px', marginBottom: '16px' }}>Enter your name to join</h2>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Your name"
+            style={{
+              padding: '12px',
+              width: '60%',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              color: '#2C3A47',
+              fontSize: '16px',
+              marginRight: '10px',
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleNameSubmit();
+              }
+            }}
+          />
+          <button
+            onClick={handleNameSubmit}
+            style={{
+              padding: '12px 20px',
+              backgroundColor: '#2C3A47',
+              color: '#fff',
+              borderRadius: '8px',
+              border: 'none',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseOver={(e) => (e.target.style.backgroundColor = '#596275')}
+            onMouseOut={(e) => (e.target.style.backgroundColor = '#2C3A47')}
+          >
+            Join
+          </button>
+        </motion.div>
+      </motion.div>
+    )
   }
 
-  if (roomClosed) {
+  if(roomClosed) {
     return (
-      <div style={{ textAlign: 'center', marginTop: '100px' }}>
-        <h2>The host has left. The room is now closed.</h2>
-        <button onClick={() => navigate('/')}>Return to Home</button>
-      </div>
-    );
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+        style={{
+          width: '100%',
+          height: '100vh',
+          background: 'linear-gradient(to top right, #f3f4f6, #9ca3af)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'relative',
+          textAlign: 'center',
+          color: '#111',
+        }}
+      >
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          backdropFilter: 'blur(12px)',
+          padding: '40px',
+          borderRadius: '16px',
+          boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+          zIndex: 10
+        }}>
+          <h2 style={{ fontSize: '24px', marginBottom: '20px' }}>The host has left. The room is now closed.</h2>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              padding: '12px 20px',
+              backgroundColor: '#374151',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              transition: 'background-color 0.2s',
+            }}
+          >
+            Return to Home
+          </button>
+        </div>
+      </motion.div>
+    )
   }
 
   return (
     <>
       {isReconnecting && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          backgroundColor: '#ffcc00',
-          padding: '10px',
-          textAlign: 'center',
-          fontWeight: 'bold',
-          zIndex: 1000
-        }}>
-          Reconnecting to server...
+        <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1 }}>
+          <div>
+            <h2 style={{ color: '#2C3A47' }}>Reconnecting to server...</h2>
+          </div>
         </div>
       )}
 
-      <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <div>
-          <div style={{ textAlign: 'center' }}>
-            <h2>
-              Waiting Room for: 
+      <div
+        style={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundImage: 'linear-gradient(to top right, #f9fafb, #e5e7eb, #d1d5db)',
+        }}
+      >
+        {/* Background image */}
+        <img
+          src={backgroundImage}
+          alt="Background"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: 0.5, // softer so it doesn’t fight the gradient
+            zIndex: 0,
+            pointerEvents: 'none',
+            mixBlendMode: 'luminosity', // optional, gives a soft ink-wash feel
+          }}
+        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            padding: '32px',
+            borderRadius: '16px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            width: '100%',
+            maxWidth: '1000px',
+            height: '500px',
+            color: '#2C3A47',
+            textAlign: 'center',
+            zIndex: 10,
+          }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>
+              Waiting Room for:
               {roomCodeVisible ? ` ${roomId}` : ' [Hidden]'}
-              <div
+              <span
                 onClick={() => setRoomCodeVisible(prev => !prev)}
                 style={{
                   cursor: 'pointer',
+                  marginLeft: '10px',
                   fontSize: '18px',
-                  userSelect: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  marginLeft: '12px'
+                  verticalAlign: 'middle'
                 }}
-                title={roomCodeVisible ? 'Hide Room Code' : 'Show Room Code'}
               >
                 {roomCodeVisible ? <FaEyeSlash /> : <FaEye />}
-              </div>
+              </span>
             </h2>
-
-            <p>
-              Share this link to invite: 
-              <b style={{ marginLeft: 4 }}>
+            <p style={{ fontSize: '14px', marginBottom: '4px' }}>
+              Share this link to invite:
+              <b style={{ marginLeft: '4px' }}>
                 {roomCodeVisible ? window.location.href : '[Hidden]'}
               </b>
             </p>
-
-            <p style={{ fontWeight: 'bold', color: isRoomLocked ? 'red' : 'green' }}>
+            <p style={{ color: isRoomLocked ? '#d63031' : '#00b894', fontWeight: 'bold' }}>
               {isRoomLocked ? 'Room is locked — no new players can join' : 'Room is open'}
             </p>
           </div>
 
-          <div style={{ marginTop: '36px' }}>
-            <h3>Players in room:</h3>
-            <ul style={{ listStyle: 'number' }}>
-              {players.map((player, idx) => (
-                <li key={idx}>{player}</li>
-              ))}
-            </ul>
-          </div>
 
-        <div>
-          <div
-            style={{
-              maxWidth: '600px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-              border: '1px solid #e0e0e0',
-              borderRadius: '10px',
-              padding: '12px',
-              backgroundColor: '#fafafa',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-              fontFamily: 'sans-serif',
-              fontSize: '14px',
-              overflowWrap: 'break-word'
-            }}
-          >
-            {messages.map((msg, i) => (
+          <div style={{ display: 'flex', gap: '24px', marginTop: '20px' }}>
+            {/* Players in Room */}
+            <div style={{ flex: 1 }}>
+              <h3 style={{ marginBottom: '12px' }}>Players in room:</h3>
+              <ul style={{ paddingLeft: '20px', listStyle: 'none' }}>
+                {players.map((player, idx) => (
+                  <li key={idx}>{player}</li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Chat box */}
+            <div style={{ flex: 2 }}>
               <div
-                key={i}
-                className="message-entry"
                 style={{
-                  padding: '6px 8px',
-                  marginBottom: '6px',
-                  backgroundColor: '#fff',
-                  borderRadius: '6px',
-                  transition: 'background-color 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  color: '#000',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f0f0f0';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fff';
+                  height: '200px',
+                  maxWidth: '700px',
+                  overflowY: 'auto',
+                  wordBreak: 'break-all',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  backgroundColor: '#fdfdfd',
+                  fontSize: '14px',
+                  color: '#2C3A47'
                 }}
               >
-                <span style={{ color: '#888', fontSize: '12px', minWidth: '64px' }}>
-                  [{msg.timestamp}]
-                </span>
-                <span style={{ maxWidth: '100%', wordBreak: 'break-word', flex: 1, color: '#000' }}><strong>{msg.sender}:</strong> {msg.text}</span>
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      textAlign: 'left',
+                      marginBottom: '8px',
+                      padding: '12px 12px',
+                      backgroundColor: '#fff',
+                      borderRadius: '6px',
+                      border: '1px solid #eee',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', color: '#888' }}>
+                      [{msg.timestamp}]
+                    </span>
+                    <strong> {msg.sender}:</strong> {msg.text}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
 
-
-          <div
-            style={{
-              marginTop: '20px',
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              padding: '0 8px',
-            }}
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type a message"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                fontSize: '14px',
-                borderRadius: '8px',
-                border: '1px solid #ccc',
-                backgroundColor: '#fff',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                outline: 'none',
-                transition: 'border 0.2s ease',
-                color: '#000',
-              }}
-            />
-            <button
-              onClick={sendMessage}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: '#2d3436',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                transition: 'background-color 0.2s ease',
-              }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
-            >
-              Send
-            </button>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a message"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    fontSize: '14px',
+                    borderRadius: '6px',
+                    border: '1px solid #ccc',
+                  }}
+                />
+                <button
+                  onClick={sendMessage}
+                  style={{
+                    backgroundColor: '#2d3436',
+                    color: '#fff',
+                    padding: '10px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => (e.target.style.backgroundColor = '#636e72')}
+                  onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d3436')}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
           </div>
 
           <button
             onClick={() => setIsMuted((prev) => !prev)}
             style={{
               position: 'absolute',
-              top: 10,
-              right: 10,
+              top: 24,
+              right: 24,
               backgroundColor: '#eee',
               border: 'none',
               borderRadius: '6px',
@@ -428,32 +555,24 @@ export default function WaitingRoom() {
           </button>
 
           {isHost && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '30px' }}>
               <button
                 onClick={startGame}
                 style={{
-                  padding: '10px 16px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  backgroundColor: '#82589F',
+                  backgroundColor: '#4f46e5',
                   color: '#fff',
                   borderRadius: '6px',
+                  padding: '10px 16px',
+                  fontWeight: 'bold',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 5px rgba(108, 92, 231, 0.4)', // purple shadow
-                  transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+                  border: 'none',
+                  transition: 'background-color 0.3s ease'
                 }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.backgroundColor = '#B33771';
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(162, 155, 254, 0.6)'; // lighter purple shadow
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.backgroundColor = '#82589F';
-                  e.currentTarget.style.boxShadow = '0 2px 5px rgba(108, 92, 231, 0.4)';
-                }}
+                onMouseOver={(e) => (e.target.style.backgroundColor = '#4338ca')}
+                onMouseOut={(e) => (e.target.style.backgroundColor = '#4f46e5')}
               >
                 Start Game
               </button>
-
               <button
                 onClick={() => {
                   socket.emit('toggle_room_lock', { roomId }, (res) => {
@@ -465,20 +584,27 @@ export default function WaitingRoom() {
                   });
                 }}
                 style={{
-                  padding: '10px 16px',
-                  fontWeight: 'bold',
-                  borderRadius: '6px',
                   backgroundColor: isRoomLocked ? '#d63031' : '#00b894',
                   color: 'white',
-                  cursor: 'pointer'
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.3s ease'
                 }}
+                onMouseOver={(e) =>
+                  (e.target.style.backgroundColor = isRoomLocked ? '#ff7675' : '#55efc4')
+                }
+                onMouseOut={(e) =>
+                  (e.target.style.backgroundColor = isRoomLocked ? '#d63031' : '#00b894')
+                }
               >
                 {isRoomLocked ? '🔒' : '🔓'}
               </button>
             </div>
           )}
-        </div>
-        </div>
+        </motion.div>
       </div>
     </>
   );

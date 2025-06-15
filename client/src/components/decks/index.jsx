@@ -16,7 +16,7 @@ export default function CardDeck({ deckType, cards, deckCount, onCardClick, onRe
             height: 120,
             border: "2px solid #555",
             borderRadius: 8,
-            backgroundColor: "#fff",
+            backgroundColor: "#ecf0f1",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",

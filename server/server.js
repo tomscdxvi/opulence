@@ -441,7 +441,11 @@ async function purchaseCard(io, roomId, socketId, cardId, confirmWildUse = false
   room.turnLog.push({
     player: player.username,
     action: 'purchase_card',
-    details: { cardId },
+    details: { 
+      cardId: cardId,
+      gemType: cardToBuy.gemType,
+      cardScore: cardToBuy.score || 0
+    },
     timestamp: new Date(),
   });
 
@@ -545,6 +549,8 @@ async function reserveCard(io, roomId, socketId, cardId) {
     action: 'reserve_card',
     details: {
       cardId: cardToReserve.id,
+      gemType: cardToReserve.gemType,
+      cardScore: cardToReserve.score,
       source: source.from,
       type: source.type,
     },

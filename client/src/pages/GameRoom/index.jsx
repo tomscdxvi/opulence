@@ -4,6 +4,8 @@ import PlayerHand from '../../components/player-hand';
 import PlayBoard from '../../components/play-board';
 import { socket } from '../../util/socket';
 
+import backgroundImage from '../../assets/pages/background.jpg';
+
 export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -83,16 +85,35 @@ export default function GameRoom() {
     <div
       style={{
         position: 'relative',
-        width: '100vw',
+        width: '100%',
         height: '100vh',
         display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#e0e0e0',
+        justifyContent: 'start',
+        // alignItems: 'flex-start',
+        padding: '20px',
         boxSizing: 'border-box',
         overflow: 'hidden',
+        backgroundImage: 'linear-gradient(to top right, #f9fafb, #e5e7eb, #d1d5db)',
       }}
-    > 
+    >
+      {/* Background image */}
+      <img
+        src={backgroundImage}
+        alt="Background"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          opacity: 0.5, // softer so it doesn’t fight the gradient
+          zIndex: 0,
+          pointerEvents: 'none',
+          mixBlendMode: 'luminosity', // optional, gives a soft ink-wash feel
+        }}
+      />
+      
       <PlayBoard gameState={gameState} playerId={playerId} />
 
       {error && (
